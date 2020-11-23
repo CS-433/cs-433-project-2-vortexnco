@@ -6,6 +6,7 @@
 *.ipynb_checkpoints
 
 #images
+raw_data/*
 *.zip
 *.tar
 *.png
