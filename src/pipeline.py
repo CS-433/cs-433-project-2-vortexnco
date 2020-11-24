@@ -116,7 +116,7 @@ def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 128):
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    criterion = IOULoss() #TODO change criterion
+    criterion = IOULoss()
     
     model = UNet(n_channels=3, n_classes=2, bilinear=False)
     model = model.to(device)
