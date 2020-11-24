@@ -46,8 +46,28 @@ class AvailableRooftopDataset(Dataset):
 
 
     def __len__(self):
-        return None
+        return len(self.image_label_dict)
 
     def __getitem__(self, idx):
-        return None
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        img_name = os.path.join(self.root_dir,
+                                self.landmarks_frame.iloc[idx, 0])
+        image = io.imread(img_name)
+        landmarks = self.landmarks_frame.iloc[idx, 1:]
+        landmarks = np.array([landmarks])
+        landmarks = landmarks.astype('float').reshape(-1, 2)
+        sample = {'image': image, 'landmarks': landmarks}
+
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
+
+#print('.DS_Store' in [image_name for image_name in os.listdir('../data/images') if image_name[0] != '.'])
+if ('DAP_204_2.5' in ['DAP_204_2.6_label.png', 'DAP_204_2.5_label.png']): print('YES')
+#print(os.path.splitext('DOP25_LV03_1301_11_2015_1_15_497500.0_119062.5.png'))
+
+
        
