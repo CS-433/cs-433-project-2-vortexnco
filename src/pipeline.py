@@ -6,14 +6,17 @@ Created on Mon Nov 23 20:23:24 2020
 """
 from unet_model import UNet
 import torch
+from torch.nn.modules.loss import _Loss
     
 def get_train_test_loaders():
     raise NotImplementedError
-    
-def metric(prediction, labels):
-    return iou(prediction, labels)
 
+class IOULoss(_Loss):
+    def __init__(self) -> None:
+        super(IOULoss, self).__init__()
 
+    def forward(self, prediction, labels):
+        return iou(prediction, labels)
 
 def iou(prediction, labels, smooth = 1e-6):
     """
@@ -38,7 +41,7 @@ def iou(prediction, labels, smooth = 1e-6):
     # You can comment out this line if you are passing tensors of equal shape
     # But if you are passing output from UNet or something it will most probably
     # be with the BATCH x 1 x H x W shape
-    outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
+    prediction = prediction.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
     
     intersection = (prediction & labels).float().sum((1, 2))  # Will be zero if Truth=0 or Prediction=0
     union = (prediction | labels).float().sum((1, 2))         # Will be zero if both are 0
@@ -47,7 +50,7 @@ def iou(prediction, labels, smooth = 1e-6):
     
     #thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
     
-    return iou.mean()  # Or iou if you are interested in each element of the batch
+    return torch.mean(iou)  # Or iou if you are interested in each element of the batch
 
 def train(model, criterion, dataset_train, dataset_test, optimizer, num_epochs, device):
     """
@@ -99,9 +102,9 @@ def train(model, criterion, dataset_train, dataset_test, optimizer, num_epochs, 
                 
                 # Evaluate the network (forward pass)
                 prediction = model(batch_x)
-                accuracies_test.append(metric(prediction, batch_y))
+                accuracies_test.append(iou(prediction, batch_y))
         
-        print("Epoch {} | Test metric: {:.5f}".format(epoch, sum(accuracies_test).item()/len(accuracies_test)))
+        print("Epoch {} | Test IoU: {:.5f}".format(epoch, sum(accuracies_test).item()/len(accuracies_test)))
 
 def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 128):  
     
@@ -113,7 +116,8 @@ def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 128):
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    criterion = torch.nn.CrossEntropyLoss() #TODO change criterion
+    criterion = IOULoss()
+    
     model = UNet(n_channels=3, n_classes=2, bilinear=False)
     model = model.to(device)
     dataset_train, dataset_test = get_train_test_loaders()
