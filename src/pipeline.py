@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Nov 23 20:23:24 2020
-
-@author: Alexander
-"""
-from unet_model import UNet
 import torch
 from torch.nn.modules.loss import _Loss
+from torch.utils.data import DataLoader
+
+from unet_model import UNet
     
 def get_train_test_loaders():
     raise NotImplementedError
@@ -116,6 +112,9 @@ def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 128):
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
+    roof_dataset = AvailableRooftopDataset(dir_images= '../data/images/', dir_labels= '../data/labels/')
+    roof_dataloader = DataLoader(roof_dataset, batch_size=4, shuffle=True, num_workers=0)
+
     criterion = IOULoss()
     
     model = UNet(n_channels=3, n_classes=2, bilinear=False)
