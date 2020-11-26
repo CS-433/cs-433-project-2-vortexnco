@@ -1,52 +1,31 @@
 import torch
-from torch.nn.modules.loss import _Loss
+
+from AvailableRooftopDataset import AvailableRooftopDataset 
 from torch.utils.data import DataLoader
-
 from unet_model import UNet
+from losses import IOULoss, iou
+
+def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 128):  
     
-def get_train_test_loaders():
-    raise NotImplementedError
-
-class IOULoss(_Loss):
-    def __init__(self) -> None:
-        super(IOULoss, self).__init__()
-
-    def forward(self, prediction, labels):
-        return iou(prediction, labels)
-
-def iou(prediction, labels, smooth = 1e-6):
+    
+    # If a GPU is available (should be on Colab, we will use it)
     """
-    Intersection over union of two boxes
-
-    Parameters
-    ----------
-    prediction : torch.Tensor
-        Labels of the batch.
-    labels : torch.Tensor
-        Labels of the batch.
-    smooth : float, optional
-        Smoothing factor to avoid 0 division. The default is 1e-6.
-
-    Returns
-    -------
-    float
-        mean iou over the batch.
-
+    if not torch.cuda.is_available() or :
+        raise Exception("Things will go much quicker if you enable a GPU in Colab under 'Runtime / Change Runtime Type'")
     """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # You can comment out this line if you are passing tensors of equal shape
-    # But if you are passing output from UNet or something it will most probably
-    # be with the BATCH x 1 x H x W shape
-    prediction = prediction.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
+    roof_dataset = AvailableRooftopDataset(dir_images= '../data/images/', dir_labels= '../data/labels/')
+    roof_dataloader = DataLoader(roof_dataset, batch_size=4, shuffle=True, num_workers=0)
+
+    criterion = IOULoss()
     
-    intersection = (prediction & labels).float().sum((1, 2))  # Will be zero if Truth=0 or Prediction=0
-    union = (prediction | labels).float().sum((1, 2))         # Will be zero if both are 0
+    model = UNet(n_channels=3, n_classes=2, bilinear=False)
+    model = model.to(device)
+    dataset_train, dataset_test = get_train_test_loaders()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    train(model, criterion, dataset_train, dataset_test, optimizer, num_epochs, device)
     
-    iou = (intersection + smooth) / (union + smooth)  # We smooth our devision to avoid 0/0
-    
-    #thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
-    
-    return torch.mean(iou)  # Or iou if you are interested in each element of the batch
 
 def train(model, criterion, dataset_train, dataset_test, optimizer, num_epochs, device):
     """
@@ -102,26 +81,6 @@ def train(model, criterion, dataset_train, dataset_test, optimizer, num_epochs, 
         
         print("Epoch {} | Test IoU: {:.5f}".format(epoch, sum(accuracies_test).item()/len(accuracies_test)))
 
-def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 128):  
-    
-    
-    # If a GPU is available (should be on Colab, we will use it)
-    """
-    if not torch.cuda.is_available() or :
-        raise Exception("Things will go much quicker if you enable a GPU in Colab under 'Runtime / Change Runtime Type'")
-    """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    roof_dataset = AvailableRooftopDataset(dir_images= '../data/images/', dir_labels= '../data/labels/')
-    roof_dataloader = DataLoader(roof_dataset, batch_size=4, shuffle=True, num_workers=0)
-
-    criterion = IOULoss()
-    
-    model = UNet(n_channels=3, n_classes=2, bilinear=False)
-    model = model.to(device)
-    dataset_train, dataset_test = get_train_test_loaders()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    train(model, criterion, dataset_train, dataset_test, optimizer, num_epochs, device)
     
 if __name__ == "__main__":
     main()
