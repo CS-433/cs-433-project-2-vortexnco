@@ -3,6 +3,8 @@ import random
 
 from torch.utils.data import Dataset
 from skimage import io, transform
+import torch
+import numpy as np
 
 class AvailableRooftopDataset(Dataset):
     """Available Rooftop Dataset."""
@@ -55,12 +57,18 @@ class AvailableRooftopDataset(Dataset):
 
         image_name = self.images_name[idx]
         label_name = self.image_label_dict[image_name]
-
-        image = io.imread(image_name)
-        label = io.imread(label_name)
-
+        
+        image_path = os.path.join(self.dir_images, image_name)
+        if label_name != 'DEFAULT':
+            label_path = os.path.join(self.dir_labels, label_name)
+        
+        image = io.imread(image_path)
+        label = np.zeros((250, 250))
+        if label_name != 'DEFAULT':
+            label = io.imread(label_path, as_gray=True)
+        
         sample = {'image': image, 'label': label}
-
+        
         # Apply the transforms if any
         if self.transform:
             sample = self.transform(sample)
