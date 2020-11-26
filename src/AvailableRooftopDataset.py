@@ -2,7 +2,7 @@ import os
 import random
 
 from torch.utils.data import Dataset
-
+from skimage import io, transform
 
 class AvailableRooftopDataset(Dataset):
     """Available Rooftop Dataset."""
@@ -36,7 +36,7 @@ class AvailableRooftopDataset(Dataset):
                     label_name_associated = label_full_name
 
             # If no label associated, then it should be a black label
-            if (!label_name_associated):
+            if (not label_name_associated):
                 label_name_associated = 'DEFAULT'
 
             self.image_label_dict[image_full_name] = label_name_associated
@@ -49,25 +49,22 @@ class AvailableRooftopDataset(Dataset):
         return len(self.image_label_dict)
 
     def __getitem__(self, idx):
+        # In case we use random_split
         if torch.is_tensor(idx):
-            idx = idx.tolist()
+             idx = idx.tolist()
 
-        img_name = os.path.join(self.root_dir,
-                                self.landmarks_frame.iloc[idx, 0])
-        image = io.imread(img_name)
-        landmarks = self.landmarks_frame.iloc[idx, 1:]
-        landmarks = np.array([landmarks])
-        landmarks = landmarks.astype('float').reshape(-1, 2)
-        sample = {'image': image, 'landmarks': landmarks}
+        image_name = self.images_name[idx]
+        label_name = self.image_label_dict[image_name]
 
+        image = io.imread(image_name)
+        label = io.imread(label_name)
+
+        sample = {'image': image, 'label': label}
+
+        # Apply the transforms if any
         if self.transform:
             sample = self.transform(sample)
 
         return sample
-
-#print('.DS_Store' in [image_name for image_name in os.listdir('../data/images') if image_name[0] != '.'])
-if ('DAP_204_2.5' in ['DAP_204_2.6_label.png', 'DAP_204_2.5_label.png']): print('YES')
-#print(os.path.splitext('DOP25_LV03_1301_11_2015_1_15_497500.0_119062.5.png'))
-
 
        
