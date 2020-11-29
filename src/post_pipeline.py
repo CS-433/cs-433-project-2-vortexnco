@@ -1,17 +1,13 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Nov 20 18:57:29 2020
-
-@author: Alexander
-"""
-
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 import os 
-from PIL import Image
 import random
-from helpers import  get_label_file
+
+from PIL import Image
+from itertools import product
+from helpers import *
+
 dataFolder = "../data"
 test_filename = "DOP25_LV03_1301_11_2015_1_15_497500.0_119062.5.png"
 
@@ -48,7 +44,7 @@ if __name__ =="__main__":
     plt.show()
     plt.imshow(labels[1])
     plt.show()
-    true_value = np.array([1,1,1]).astype(np.uint8)
+    true_value = np.array([1,1,1], dtype=np.uint8)
     array = compare_labels(labels[0], labels[1])
     plt.imshow(array)
     TP = mpatches.Patch(color='green', label='TP')
