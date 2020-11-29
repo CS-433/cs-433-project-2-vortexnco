@@ -6,14 +6,15 @@ from skimage import io, transform
 import torch
 import numpy as np
 
+
 class AvailableRooftopDataset(Dataset):
     """Available Rooftop Dataset."""
 
     def __init__(self, dir_images, dir_labels, transform=None):
         """
         Args:
-            root_dir_images (string): Directory with all the images.
-            root_dir_labels (string): Directory with all the labels.
+            dir_images (string): Directory with all the images.
+            dir_labels (string): Directory with all the labels.
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         self.dir_images = dir_images
@@ -31,15 +32,9 @@ class AvailableRooftopDataset(Dataset):
         for image_full_name in self.images_name:
             image_name, image_extension = os.path.splitext(image_full_name)
 
-            # Find the label of the image, if there is one
-            label_name_associated = None
-            for label_full_name in self.labels_name:
-                if image_name in label_full_name:
-                    label_name_associated = label_full_name
-
-            # If no label associated, then it should be a black label
-            if (not label_name_associated):
-                label_name_associated = 'DEFAULT'
+            # Find the label of the image if there is one, otherwise it should be a black label
+            for label_name in self.labels_name:
+                label_name_associated = label_name if image_name in label_name else 'DEFAULT'
 
             self.image_label_dict[image_full_name] = label_name_associated
 
@@ -49,6 +44,7 @@ class AvailableRooftopDataset(Dataset):
 
     def __len__(self):
         return len(self.image_label_dict)
+
 
     def __getitem__(self, idx):
         # In case we use random_split
@@ -74,5 +70,3 @@ class AvailableRooftopDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
-
-       

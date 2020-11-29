@@ -52,7 +52,7 @@ def compare_labels(true_label, predicted_label):
     return result.T
 
 
-if __name__ =="__main__":
+if __name__ == "__main__":
     label_files = random.sample(os.listdir(labelFolder), 2)
     image_files = [get_image_file(f) for f in label_files]
     label_files = [os.path.join(labelFolder, f) for f in label_files]
