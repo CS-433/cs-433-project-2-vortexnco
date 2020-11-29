@@ -69,8 +69,7 @@ def train(model, criterion, dataset_train, dataset_test, optimizer, num_epochs, 
 
     Returns
     -------
-    None.
-
+    None
     """
     
     print("Starting training")
@@ -122,5 +121,3 @@ def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 128):
     
 if __name__ == "__main__":
     main()
-    
-    

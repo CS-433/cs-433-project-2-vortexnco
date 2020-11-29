@@ -36,7 +36,6 @@ def get_groudtruth_file(filename_image):
     return filename_label+file_extension
 
 
-
 def compare_labels(true_label, predicted_label):
     array = np.zeros_like(true_label)
     (height, width, channels) = array.shape
@@ -89,4 +88,3 @@ if __name__ =="__main__":
     array = compare_labels(labels[0], labels[1])
     plt.imshow(array)
     plt.show()
-        
