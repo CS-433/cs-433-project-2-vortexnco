@@ -9,6 +9,8 @@ from itertools import product
 from helpers import *
 
 dataFolder = "../data"
+imageFolder = os.path.join(dataFolder, "images")
+labelFolder = os.path.join(dataFolder, "labels")
 test_filename = "DOP25_LV03_1301_11_2015_1_15_497500.0_119062.5.png"
 
 def compare_labels(true_label, predicted_label):
@@ -36,8 +38,10 @@ def compare_labels(true_label, predicted_label):
     return array
 
 if __name__ =="__main__":
-    filenames = random.sample(os.listdir(os.path.join(dataFolder, "PV")), 2)
-    label_files = [os.path.join(dataFolder, "PV", "labels", get_label_file(filename)) for filename in filenames]
+    label_files = random.sample(os.listdir(labelFolder), 2)
+    image_files = [get_image_file(f) for f in label_files]
+    label_files = [os.path.join(labelFolder, f) for f in label_files]
+    image_files = [os.path.join(imageFolder, f) for f in image_files]
     labels = [np.array(Image.open(label_file).convert('L')) for label_file in label_files]
     
     plt.imshow(labels[0])
