@@ -8,34 +8,49 @@ from PIL import Image
 from itertools import product
 from helpers import *
 
+
 dataFolder = "../data"
 imageFolder = os.path.join(dataFolder, "images")
 labelFolder = os.path.join(dataFolder, "labels")
 test_filename = "DOP25_LV03_1301_11_2015_1_15_497500.0_119062.5.png"
 
+# POS = 255
+# NEG = 0
+# true_value = 255
+true_positive = [0,255,0]
+true_negative = [0,0,0]
+false_positive = [255,0,0]
+false_negative = [255,215,0]
+
+# If color values are binary
+# COMPARE_MAP_01 = {
+#     (2,0)  : true_positive,
+#     (0,0)  : true_negative,
+#     (1,1)  : false_positive,
+#     (1,-1) : false_negative
+# }
+
+# If color values are 3 bytes
+COMPARE_MAP_uint8 = {
+    (254,0)   : true_positive,
+    (0,0)     : true_negative,
+    (255,255) : false_positive,
+    (255,1)   : false_negative
+}
+
+
 def compare_labels(true_label, predicted_label):
-    (height, width) = true_label.shape
-    #array with annotated arreas for TP, FP, TN, FN
-    array = np.zeros((height, width, 3), dtype=int)  
-    
-    #true_value = np.array([255,255,255]) #TODO change maybe in 1 (RGB -> B&W)
-    true_value = 255
-    true_positive = [0,255,0]
-    false_positive = [255,0,0]
-    false_negative = [255,215,0]
-    
-    #TODO might need to remove : if numpy array are just HxW and not HxWx3
-    for h in range(height):
-        for w in range(width):
-            if true_label[h,w] == predicted_label[h,w]:
-                if true_label[h,w] == true_value:
-                    array[h,w] = true_positive
-            else:
-                if true_label[h,w] == true_value:
-                    array[h,w] = false_negative
-                else:
-                    array[h,w] = false_positive
-    return array
+    """Outputs an array annotated as TP, FP, TN or FN"""
+    height, width = true_label.shape
+    comp_array = np.array([predicted_label + true_label, predicted_label - true_label])
+    f = lambda i, j: COMPARE_MAP_uint8[tuple(comp_array[:,i,j])]
+
+    result = np.empty((3, height, width), dtype = int)
+    for i, j in product(range(height), range(height)):
+        result[:,i,j] = f(i, j)
+
+    return result.T
+
 
 if __name__ =="__main__":
     label_files = random.sample(os.listdir(labelFolder), 2)
