@@ -4,7 +4,7 @@ Adapted from https://github.com/milesial/Pytorch-UNet/blob/master/unet/unet_mode
 """
 
 import torch.nn as nn
-from unet_parts import DoubleConv, Down, Up, OutConv
+from model.unet_parts import DoubleConv, Down, Up, OutConv
 
 
 class UNet(nn.Module):
