@@ -6,14 +6,15 @@ from skimage import io, transform
 import torch
 import numpy as np
 
+
 class AvailableRooftopDataset(Dataset):
     """Available Rooftop Dataset."""
 
     def __init__(self, dir_images, dir_labels, transform=None):
         """
         Args:
-            root_dir_images (string): Directory with all the images.
-            root_dir_labels (string): Directory with all the labels.
+            dir_images (string): Directory with all the images.
+            dir_labels (string): Directory with all the labels.
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         self.dir_images = dir_images
@@ -50,6 +51,7 @@ class AvailableRooftopDataset(Dataset):
     def __len__(self):
         return len(self.image_label_dict)
 
+
     def __getitem__(self, idx):
         # In case we use random_split
         if torch.is_tensor(idx):
@@ -74,5 +76,3 @@ class AvailableRooftopDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
-
-       
