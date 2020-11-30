@@ -3,7 +3,8 @@ import torch
 from AvailableRooftopDataset import AvailableRooftopDataset 
 from torch.utils.data import DataLoader
 from model.unet_model import UNet
-from losses import IOULoss, iou
+from losses import GeneralLoss, jaccard_loss
+import torch.nn as nn
     
 
 def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_epochs, device):
@@ -27,29 +28,29 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
         model.train()
         for sample_batched in dataloader_train:
             batch_x, batch_y = sample_batched['image'], sample_batched['label']
-            batch_x, batch_y = batch_x.to(device), batch_y.to(device)
+            batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(device, dtype=torch.float32)
                         
             # Evaluate the network (forward pass)
             model.zero_grad()
             output = model(batch_x)
             loss = criterion(output, batch_y)
-            
             # Compute the gradient
             loss.backward()
-            
             # Update the parameters of the model with a gradient step
             optimizer.step()
               
             # Test the quality on the test set
             model.eval()
             accuracies_test = []
-            for sample_batched_test in dataloader_test:
-                batch_x_test, batch_y_test = sample_batched_test['image'], sample_batched_test['label'] 
-                batch_x_test, batch_y_test = batch_x.to(device), batch_y.to(device)
-                
-                # Evaluate the network (forward pass)
-                prediction = model(batch_x_test)
-                accuracies_test.append(iou(prediction, batch_y_test))
+            
+        model.eval()
+        for sample_batched_test in dataloader_test:
+            batch_x_test, batch_y_test = sample_batched_test['image'], sample_batched_test['label'] 
+            batch_x_test, batch_y_test = batch_x.to(device), batch_y.to(device)
+            
+            # Evaluate the network (forward pass)
+            prediction = model(batch_x_test)
+            accuracies_test.append(criterion(prediction, batch_y_test))
         
         print("Epoch {} | Test IoU: {:.5f}".format(epoch, sum(accuracies_test).item()/len(accuracies_test)))
 
@@ -72,9 +73,11 @@ def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 4, train_percentage
     roof_dataloader_train = DataLoader(roof_dataset_train, batch_size=batch_size, shuffle=True, num_workers=0)
     roof_dataloader_test = DataLoader(roof_dataset_test, batch_size=batch_size, shuffle=True, num_workers=0)
 
-    criterion = IOULoss()
+    #criterion = IOULoss()
+    #criterion = nn.BCEWithLogitsLoss()
+    criterion = GeneralLoss(jaccard_loss)
     
-    model = UNet(n_channels=3, n_classes=2, bilinear=False)
+    model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
