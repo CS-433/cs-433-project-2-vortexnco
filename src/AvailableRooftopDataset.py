@@ -64,11 +64,16 @@ class AvailableRooftopDataset(Dataset):
         if label_name != 'DEFAULT':
             label_path = os.path.join(self.dir_labels, label_name)
         
+        # Retrieve the image and transpose from (HxWxC) -> (CxHxW)
         image = io.imread(image_path)
-        label = np.zeros((250, 250))
+        image = image.transpose(2, 0, 1)
+
+        label = np.zeros((1, 250, 250))
         if label_name != 'DEFAULT':
+            # Retrieve the label and transpose from (HxWxC) -> (CxHxW)
             label = io.imread(label_path, as_gray=True)
-        
+            label = label[np.newaxis,:]
+
         sample = {'image': image, 'label': label}
         
         # Apply the transforms if any
