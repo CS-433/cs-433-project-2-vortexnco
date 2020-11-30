@@ -36,7 +36,6 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
             loss = criterion(output, batch_y)
             # Compute the gradient
             loss.backward()
-            print(loss)
             # Update the parameters of the model with a gradient step
             optimizer.step()
               
