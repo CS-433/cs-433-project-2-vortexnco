@@ -63,10 +63,8 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
     # Train an epoch
         model.train()
         for sample_batched in dataloader_train:
-            print(sample_batched)
             batch_x, batch_y = sample_batched['image'], sample_batched['label']
             batch_x, batch_y = batch_x.to(device), batch_y.to(device)
-            
             # Evaluate the network (forward pass)
             model.zero_grad()
             output = model(batch_x)
