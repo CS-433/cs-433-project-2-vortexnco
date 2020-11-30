@@ -32,9 +32,15 @@ class AvailableRooftopDataset(Dataset):
         for image_full_name in self.images_name:
             image_name, image_extension = os.path.splitext(image_full_name)
 
-            # Find the label of the image if there is one, otherwise it should be a black label
-            for label_name in self.labels_name:
-                label_name_associated = label_name if image_name in label_name else 'DEFAULT'
+            # Find the label of the image, if there is one
+            label_name_associated = None
+            for label_full_name in self.labels_name:
+                if image_name in label_full_name:
+                    label_name_associated = label_full_name
+
+            # If no label associated, then it should be a black label
+            if (not label_name_associated):
+                label_name_associated = 'DEFAULT'
 
             self.image_label_dict[image_full_name] = label_name_associated
 
