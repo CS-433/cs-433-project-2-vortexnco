@@ -3,7 +3,7 @@ import torch
 from AvailableRooftopDataset import AvailableRooftopDataset 
 from torch.utils.data import DataLoader
 from model.unet_model import UNet
-from losses import GeneralLoss, jaccard_loss
+from losses import GeneralLoss, jaccard_loss, jaccard_distance_loss, DiceLoss
 import torch.nn as nn
     
 
@@ -39,11 +39,10 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
             # Update the parameters of the model with a gradient step
             optimizer.step()
               
-            # Test the quality on the test set
-            model.eval()
-            accuracies_test = []
-            
+        # Test the quality on the test set
         model.eval()
+        accuracies_test = []
+            
         for sample_batched_test in dataloader_test:
             batch_x_test, batch_y_test = sample_batched_test['image'], sample_batched_test['label'] 
             batch_x_test, batch_y_test = batch_x.to(device), batch_y.to(device)
@@ -75,7 +74,8 @@ def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 4, train_percentage
 
     #criterion = IOULoss()
     #criterion = nn.BCEWithLogitsLoss()
-    criterion = GeneralLoss(jaccard_loss)
+    #criterion = GeneralLoss(jaccard_distance_loss)
+    criterion = DiceLoss()
     
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)

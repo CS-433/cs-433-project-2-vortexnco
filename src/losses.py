@@ -1,5 +1,8 @@
 import torch
+from torch import sigmoid
 from torch.nn.modules.loss import _Loss
+import torch.nn as nn
+import torch.nn.functional as F
 
 
 class GeneralLoss(_Loss):
@@ -43,10 +46,48 @@ def iou(labels, prediction , smooth = 1e-6):
     #thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
     return torch.mean(iou)
 
+
+
+def jaccard_distance_loss(y_true, y_pred, smooth=100):
+    """
+    Jaccard = (|X & Y|)/ (|X|+ |Y| - |X & Y|)
+            = sum(|A*B|)/(sum(|A|)+sum(|B|)-sum(|A*B|))
+    
+    The jaccard distance loss is usefull for unbalanced datasets. This has been
+    shifted so it converges on 0 and is smoothed to avoid exploding or disapearing
+    gradient.
+    
+    Ref: https://en.wikipedia.org/wiki/Jaccard_index
+    
+    @url: https://gist.github.com/wassname/17cbfe0b68148d129a3ddaa227696496
+    @author: wassname
+    """
+    intersection= (y_true * y_pred).abs().sum(dim=-1)
+    sum_ = torch.sum(y_true.abs() + y_pred.abs(), dim=-1)
+    jac = (intersection + smooth) / (sum_ - intersection + smooth)
+    return (1 - jac) * smooth
+
+class DiceLoss(nn.Module):
+    def __init__(self, weight=None, size_average=True):
+        super(DiceLoss, self).__init__()
+
+    def forward(self, inputs, targets, smooth=1):
+        
+        #comment out if your model contains a sigmoid or equivalent activation layer
+        inputs = sigmoid(inputs)       
+        
+        #flatten label and prediction tensors
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+        
+        intersection = (inputs * targets).sum()                            
+        dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
+        
+        return 1 - dice
+
+
 """Common image segmentation losses. From https://github.com/kevinzakka/pytorch-goodies/blob/master/losses.py
 """
-from torch.nn import functional as F
-
 
 def bce_loss(true, logits, pos_weight=None):
     """Computes the weighted binary cross-entropy loss.
@@ -139,7 +180,7 @@ def jaccard_loss(true, logits, eps=1e-7):
     """
     num_classes = logits.shape[1]
     if num_classes == 1:
-        print(true.dtype)
+        print(true.squeeze(1).shape)
         true_1_hot = torch.eye(num_classes + 1)[true.squeeze(1)]
         true_1_hot = true_1_hot.permute(0, 3, 1, 2).float()
         true_1_hot_f = true_1_hot[:, 0:1, :, :]
