@@ -66,6 +66,7 @@ class AvailableRooftopDataset(Dataset):
         
         # Retrieve the image and transpose from (HxWxC) -> (CxHxW)
         image = io.imread(image_path)
+        image = image.astype(np.float32)
         image = image.transpose(2, 0, 1)
 
         label = np.zeros((1, 250, 250))
