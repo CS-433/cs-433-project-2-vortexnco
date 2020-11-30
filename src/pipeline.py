@@ -39,11 +39,10 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
             # Update the parameters of the model with a gradient step
             optimizer.step()
               
-            # Test the quality on the test set
-            model.eval()
-            accuracies_test = []
-            
+        # Test the quality on the test set
         model.eval()
+        accuracies_test = []
+            
         for sample_batched_test in dataloader_test:
             batch_x_test, batch_y_test = sample_batched_test['image'], sample_batched_test['label'] 
             batch_x_test, batch_y_test = batch_x.to(device), batch_y.to(device)
