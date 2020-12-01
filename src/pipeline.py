@@ -62,21 +62,24 @@ def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 4, train_percentage
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
+    # Instantiate the dataset
     roof_dataset = AvailableRooftopDataset(dir_images = '../data/images/', 
                                            dir_labels = '../data/labels/',
                                            transform = transforms.Compose([
                                                transforms.ToPILImage(),
-                                               transforms.CenterCrop(125),
-                                               transforms.Resize(250),
+                                               transforms.RandomResizedCrop(250, ratio=(1.,1.)),
                                                transforms.RandomHorizontalFlip(),
                                                transforms.ToTensor()
                                             ]))
+
+    # Split the dataset in train_set and test_set
     dataset_length = len(roof_dataset)
     train_dataset_length = int(dataset_length*train_percentage)
     test_dataset_length = dataset_length - train_dataset_length
     roof_dataset_train, roof_dataset_test = torch.utils.data.random_split(roof_dataset, [train_dataset_length, test_dataset_length],
                                                                           generator=torch.Generator().manual_seed(42))
     
+    # Create dataloaders associated to train/test set
     roof_dataloader_train = DataLoader(roof_dataset_train, batch_size=batch_size, shuffle=True, num_workers=0)
     roof_dataloader_test = DataLoader(roof_dataset_test, batch_size=batch_size, shuffle=True, num_workers=0)
 
