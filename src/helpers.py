@@ -1,6 +1,7 @@
 import os
 import re
 
+
 def get_label_file(filename_image):
     """Get the name of the corresponding label file"""
     filename, file_extension = os.path.splitext(filename_image)
@@ -12,7 +13,7 @@ def get_image_file(filename_label):
     """Get the name of the corresponding image file"""
     filename, file_extension = os.path.splitext(filename_label)
     file = filename + file_extension
-    filename_image = re.sub("_label"+file_extension, file_extension, file)
+    filename_image = re.sub("_label" + file_extension, file_extension, file)
     return filename_image
 
 

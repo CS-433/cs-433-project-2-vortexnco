@@ -22,8 +22,12 @@ class AvailableRooftopDataset(Dataset):
         self.transform = transform
 
         # Get the list of image/label name from images/labels directory, except dotfile
-        self.images_name = [image_name for image_name in os.listdir(dir_images) if image_name[0] != '.']
-        self.labels_name = [label_name for label_name in os.listdir(dir_labels) if label_name[0] != '.']
+        self.images_name = [
+            image_name for image_name in os.listdir(dir_images) if image_name[0] != "."
+        ]
+        self.labels_name = [
+            label_name for label_name in os.listdir(dir_labels) if label_name[0] != "."
+        ]
 
         # Create an image -> label dict
         self.image_label_dict = {}
@@ -39,36 +43,34 @@ class AvailableRooftopDataset(Dataset):
                     label_name_associated = label_full_name
 
             # If no label associated, then it should be a black label
-            if (not label_name_associated):
-                label_name_associated = 'DEFAULT'
+            if not label_name_associated:
+                label_name_associated = "DEFAULT"
 
             self.image_label_dict[image_full_name] = label_name_associated
 
         # Shuffle the images' name to avoid having an order when retrieving the images in __getitem__
         random.shuffle(self.images_name)
 
-
     def __len__(self):
         return len(self.image_label_dict)
-
 
     def __getitem__(self, idx):
         # In case we use random_split
         if torch.is_tensor(idx):
-             idx = idx.tolist()
+            idx = idx.tolist()
 
         image_name = self.images_name[idx]
         label_name = self.image_label_dict[image_name]
-        
+
         image_path = os.path.join(self.dir_images, image_name)
-        if label_name != 'DEFAULT':
+        if label_name != "DEFAULT":
             label_path = os.path.join(self.dir_labels, label_name)
-        
+
         # Retrieve the image
         image = io.imread(image_path)
 
         label = np.zeros((250, 250, 3), dtype=np.uint8)
-        if label_name != 'DEFAULT':
+        if label_name != "DEFAULT":
             # Retrieve the label
             label = io.imread(label_path)
 
