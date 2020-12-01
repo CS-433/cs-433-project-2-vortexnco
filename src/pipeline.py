@@ -62,7 +62,15 @@ def main(num_epochs = 10, learning_rate = 1e-3, batch_size = 4, train_percentage
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    roof_dataset = AvailableRooftopDataset(dir_images = '../data/images/', dir_labels = '../data/labels/')
+    roof_dataset = AvailableRooftopDataset(dir_images = '../data/images/', 
+                                           dir_labels = '../data/labels/',
+                                           transform = transforms.Compose([
+                                               transforms.ToPILImage(),
+                                               transforms.CenterCrop(125),
+                                               transforms.Resize(250),
+                                               transforms.RandomHorizontalFlip(),
+                                               transforms.ToTensor()
+                                            ]))
     dataset_length = len(roof_dataset)
     train_dataset_length = int(dataset_length*train_percentage)
     test_dataset_length = dataset_length - train_dataset_length
