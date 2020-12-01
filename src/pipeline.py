@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 from model.unet_model import UNet
 from losses import GeneralLoss, jaccard_loss, jaccard_distance_loss, DiceLoss
 import torch.nn as nn
+from torchvision import transforms
     
 
 def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_epochs, device):
@@ -26,8 +27,8 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
     print("Starting training")
     for epoch in range(num_epochs):
         model.train()
-        for sample_batched in dataloader_train:
-            batch_x, batch_y = sample_batched['image'], sample_batched['label']
+        for batch_x, batch_y in dataloader_train:
+            #batch_x, batch_y = sample_batched['image'], sample_batched['label']
             batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(device, dtype=torch.float32)
                         
             # Evaluate the network (forward pass)
@@ -43,8 +44,8 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
         model.eval()
         accuracies_test = []
             
-        for sample_batched_test in dataloader_test:
-            batch_x_test, batch_y_test = sample_batched_test['image'], sample_batched_test['label'] 
+        for batch_x_test, batch_y_test in dataloader_test:
+            #batch_x_test, batch_y_test = sample_batched_test['image'], sample_batched_test['label'] 
             batch_x_test, batch_y_test = batch_x.to(device), batch_y.to(device)
             
             # Evaluate the network (forward pass)
