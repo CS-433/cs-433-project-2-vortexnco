@@ -1,8 +1,8 @@
 import torch
-from torch import sigmoid
-from torch.nn.modules.loss import _Loss
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import sigmoid
+from torch.nn.modules.loss import _Loss
 
 
 class GeneralLoss(_Loss):
