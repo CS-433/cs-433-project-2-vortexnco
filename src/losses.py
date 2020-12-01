@@ -1,5 +1,7 @@
 import torch
-from torch.nn import functional as F
+import torch.nn as nn
+import torch.nn.functional as F
+from torch import sigmoid
 from torch.nn.modules.loss import _Loss
 
 
@@ -44,9 +46,11 @@ def iou(labels, prediction , smooth = 1e-6):
     #thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
     return torch.mean(iou)
 
+
 """
 Common image segmentation losses. From https://github.com/kevinzakka/pytorch-goodies/blob/master/losses.py
 """
+
 
 def bce_loss(true, logits, pos_weight=None):
     """Computes the weighted binary cross-entropy loss.
@@ -139,7 +143,7 @@ def jaccard_loss(true, logits, eps=1e-7):
     """
     num_classes = logits.shape[1]
     if num_classes == 1:
-        print(true.dtype)
+        print(true.squeeze(1).shape)
         true_1_hot = torch.eye(num_classes + 1)[true.squeeze(1)]
         true_1_hot = true_1_hot.permute(0, 3, 1, 2).float()
         true_1_hot_f = true_1_hot[:, 0:1, :, :]

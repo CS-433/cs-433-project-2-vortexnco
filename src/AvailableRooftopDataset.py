@@ -64,22 +64,25 @@ class AvailableRooftopDataset(Dataset):
         if label_name != 'DEFAULT':
             label_path = os.path.join(self.dir_labels, label_name)
         
-        # Retrieve the image and transpose from (HxWxC) -> (CxHxW)
+        # Retrieve the image
         image = io.imread(image_path)
-        #image = image.astype(np.float32)
-        image = image.transpose(2, 0, 1)
 
-        label = np.zeros((1, 250, 250))
+        label = np.zeros((250, 250, 3), dtype=np.uint8)
         if label_name != 'DEFAULT':
-            # Retrieve the label and transpose from (HxWxC) -> (CxHxW)
-            label = io.imread(label_path, as_gray=True)
-            label = label[np.newaxis,:]
-        
-        #label = label.astype(np.float32)
-        sample = {'image': image, 'label': label}
-        
+            # Retrieve the label
+            label = io.imread(label_path)
+
+        # Define a seed to apply the same transforms for 'image' and 'label'
+        seed = np.random.randint(2147483647)
+
         # Apply the transforms if any
         if self.transform:
-            sample = self.transform(sample)
+            # Apply transforms on image (and define seed)
+            random.seed(seed)
+            image = self.transform(image)
 
-        return sample
+            # Apply transforms on label (and redefine seed)
+            random.seed(seed)
+            label = self.transform(label)
+
+        return image, label[0]
