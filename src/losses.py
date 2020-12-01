@@ -1,4 +1,5 @@
 import torch
+from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
 
@@ -43,10 +44,9 @@ def iou(labels, prediction , smooth = 1e-6):
     #thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
     return torch.mean(iou)
 
-"""Common image segmentation losses. From https://github.com/kevinzakka/pytorch-goodies/blob/master/losses.py
 """
-from torch.nn import functional as F
-
+Common image segmentation losses. From https://github.com/kevinzakka/pytorch-goodies/blob/master/losses.py
+"""
 
 def bce_loss(true, logits, pos_weight=None):
     """Computes the weighted binary cross-entropy loss.
