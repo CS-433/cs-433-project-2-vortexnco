@@ -48,12 +48,12 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
             train_error.append(loss.item())
             # Compute the gradient
             loss.backward()
+            print(loss)
             # Update the parameters of the model with a gradient step
             optimizer.step()
 
         # Test the quality on the whole training set
         avg_train_error.append(sum(train_error) / len(train_error))
-        
         
         # Test the quality on the test set
         model.eval()
