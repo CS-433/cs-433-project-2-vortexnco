@@ -8,9 +8,7 @@ import torch.nn as nn
 from torchvision import transforms
 
 
-def train(
-    model, criterion, dataloader_train, dataloader_test, optimizer, num_epochs, device
-):
+def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_epochs, device):
     """
     Parameters
     ----------
@@ -26,24 +24,37 @@ def train(
     -------
     None
     """
-    print("Starting training")
+    print("Starting training during {} epochs".format(num_epochs))
+    avg_train_error = []
+    avg_test_error = []
+
     for epoch in range(num_epochs):
+        if (epoch + 1 % 2 == 0):
+            with open("errors.txt", "w") as f:
+                f.write("Epoch {}".format(epoch))
+                f.write(str(avg_train_error))
+                f.write(str(avg_test_error))
+
         model.train()
+        train_error = []
         for batch_x, batch_y in dataloader_train:
             # batch_x, batch_y = sample_batched['image'], sample_batched['label']
-            batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(
-                device, dtype=torch.float32
-            )
+            batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(device, dtype=torch.float32)
 
             # Evaluate the network (forward pass)
             model.zero_grad()
             output = model(batch_x)
             loss = criterion(output, batch_y)
+            train_error.append(loss.item())
             # Compute the gradient
             loss.backward()
             # Update the parameters of the model with a gradient step
             optimizer.step()
 
+        # Test the quality on the whole training set
+        avg_train_error.append(sum(train_error) / len(train_error))
+        
+        
         # Test the quality on the test set
         model.eval()
         accuracies_test = []
@@ -55,12 +66,15 @@ def train(
             # Evaluate the network (forward pass)
             prediction = model(batch_x_test)
             accuracies_test.append(criterion(prediction, batch_y_test))
+        avg_test_error.append(sum(accuracies_test).item() / len(accuracies_test))
 
-        print(
-            "Epoch {} | Test IoU: {:.5f}".format(
-                epoch, sum(accuracies_test).item() / len(accuracies_test)
-            )
-        )
+        print( "Epoch {} | Train Error: {:.5f}, Test Error: {:.5f}".format( epoch, avg_train_error[-1], avg_test_error[-1] ))
+        with open("errors.txt", "w") as f:
+            f.write("Epoch {}".format(epoch))
+            f.write(str(avg_train_error))
+            f.write(str(avg_test_error))
+
+    return avg_train_error, avg_test_error
 
 
 def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8):
@@ -70,11 +84,13 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8):
         raise Exception("Things will go much quicker if you enable a GPU in Colab under 'Runtime / Change Runtime Type'")
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(torch.cuda.is_available())
+    dir_data = "/raid/machinelearning_course/data/"
 
     # Instantiate the dataset
     roof_dataset = AvailableRooftopDataset(
-        dir_images="../data/images/",
-        dir_labels="../data/labels/",
+        dir_images = dir_data + "images/",
+        dir_labels = dir_data + "labels/",
         transform=transforms.Compose(
             [
                 transforms.ToPILImage(),
@@ -108,11 +124,17 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8):
     # criterion = GeneralLoss(jaccard_distance_loss)
     criterion = DiceLoss()
 
+    # To load model params from a file
+    # model = TheModelClass(*args, **kwargs)
+    # For us: model = UNet(n_channels=3, n_classes=1, bilinear=False)
+    # model.load_state_dict(torch.load(PATH))
+    # model.eval() 
+
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    train(
+    avg_train_error, avg_test_error = train(
         model,
         criterion,
         roof_dataloader_train,
@@ -122,6 +144,11 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8):
         device,
     )
 
+    # To save model params to a file
+    # torch.save(model.state_dict(), PATH)
+
+    print(avg_train_error, avg_test_error)
+
 
 if __name__ == "__main__":
-    main()
+    main(num_epochs=300, batch_size=50)
