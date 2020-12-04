@@ -41,9 +41,10 @@ def train(
             loss = criterion(output, batch_y)
             # Compute the gradient
             loss.backward()
+            print(loss)
             # Update the parameters of the model with a gradient step
             optimizer.step()
-
+            
         # Test the quality on the test set
         model.eval()
         accuracies_test = []
