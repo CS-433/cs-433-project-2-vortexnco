@@ -72,17 +72,18 @@ def train(
         model.eval()
         accuracies_test = []
         print("Starting training")
-        for batch_x_test, batch_y_test in dataloader_test:
-            batch_x_test, batch_y_test = batch_x_test.to(device, dtype=torch.float32), batch_y_test.to(
-                device, dtype=torch.float32
-            )
-            print("NEW", batch_x_test.shape)
-            # Evaluate the network (forward pass)
-            prediction = model(batch_x_test)
-            accuracies_test.append(
-                criterion(torch.squeeze(prediction, 1), batch_y_test)
-            )
-        avg_test_error.append(sum(accuracies_test).item() / len(accuracies_test))
+        with torch.no_grad():
+            for batch_x_test, batch_y_test in dataloader_test:
+                batch_x_test, batch_y_test = batch_x_test.to(device, dtype=torch.float32), batch_y_test.to(
+                    device, dtype=torch.float32
+                )
+                print("NEW", batch_x_test.shape)
+                # Evaluate the network (forward pass)
+                prediction = model(batch_x_test)
+                accuracies_test.append(
+                    criterion(torch.squeeze(prediction, 1), batch_y_test)
+                )
+            avg_test_error.append(sum(accuracies_test).item() / len(accuracies_test))
 
         print(
             "Epoch {} | Train Error: {:.5f}, Test Error: {:.5f}".format(
