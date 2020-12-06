@@ -52,8 +52,7 @@ def train(
             batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(
                 device, dtype=torch.float32
             )
-            if len(train_error) == 1:
-                break
+
             # Evaluate the network (forward pass)
             model.zero_grad()
             output = model(batch_x)
@@ -71,13 +70,11 @@ def train(
         # Test the quality on the test set
         model.eval()
         accuracies_test = []
-        print("Starting training")
         with torch.no_grad():
             for batch_x_test, batch_y_test in dataloader_test:
                 batch_x_test, batch_y_test = batch_x_test.to(device, dtype=torch.float32), batch_y_test.to(
                     device, dtype=torch.float32
                 )
-                print("NEW", batch_x_test.shape)
                 # Evaluate the network (forward pass)
                 prediction = model(batch_x_test)
                 accuracies_test.append(
