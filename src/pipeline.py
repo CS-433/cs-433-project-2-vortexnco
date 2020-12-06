@@ -8,7 +8,7 @@ import torch.nn as nn
 from torchvision import transforms
 
 
-def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_epochs, device):
+def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_epochs, device, saving_frequency = 2):
     """
     Parameters
     ----------
@@ -29,7 +29,7 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
     avg_test_error = []
 
     for epoch in range(num_epochs):
-        if (epoch + 1 % 2 == 0):
+        if (epoch + 1 % saving_frequency == 0):
             with open("errors.txt", "w") as f:
                 f.write("Epoch {}".format(epoch))
                 f.write(str(avg_train_error))
@@ -77,7 +77,7 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
     return avg_train_error, avg_test_error
 
 
-def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, dir_data = "/raid/machinelearning_course/data/"):
+def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, dir_data = "/raid/machinelearning_course/data/", saving_frequency=2):
     # If a GPU is available (should be on Colab, we will use it)
     """
     if not torch.cuda.is_available():
@@ -142,6 +142,7 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, 
         optimizer,
         num_epochs,
         device,
+        saving_frequency
     )
 
     # To save model params to a file
