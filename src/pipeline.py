@@ -61,24 +61,22 @@ def train(
             # output is Bx1xHxW and batch_y is BxHxW, squeezing first dimension of output to have same dimension
             loss = criterion(torch.squeeze(output, 1), batch_y)
             train_error.append(loss)
-            print(loss)
             # Compute the gradient
             loss.backward()
 
             # Update the parameters of the model with a gradient step
             optimizer.step()
-
         # Test the quality on the whole training set
         avg_train_error.append(sum(train_error).item() / len(train_error))
-
         # Test the quality on the test set
         model.eval()
         accuracies_test = []
 
         for batch_x_test, batch_y_test in dataloader_test:
             # batch_x_test, batch_y_test = sample_batched_test['image'], sample_batched_test['label']
-            batch_x_test, batch_y_test = batch_x.to(device), batch_y.to(device)
-
+            batch_x_test, batch_y_test = batch_x.to(device, dtype=torch.float32), batch_y.to(
+                device, dtype=torch.float32
+            )
             # Evaluate the network (forward pass)
             prediction = model(batch_x_test)
             accuracies_test.append(
