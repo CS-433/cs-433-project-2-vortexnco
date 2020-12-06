@@ -10,43 +10,47 @@ import numpy as np
 class AvailableRooftopDataset(Dataset):
     """Available Rooftop Dataset."""
 
-    def __init__(self, dir_images, dir_labels, transform=None):
+    def __init__(self, dir_PV, dir_noPV, dir_labels, transform=None, use_noPV=False):
         """
         Args:
             dir_images (string): Directory with all the images.
             dir_labels (string): Directory with all the labels.
             transform (callable, optional): Optional transform to be applied on a sample.
         """
-        self.dir_images = dir_images
+        self.dir_PV = dir_PV
         self.dir_labels = dir_labels
         self.transform = transform
 
-        # Get the list of image/label name from images/labels directory, except dotfile
-        self.images_name = [
-            image_name for image_name in os.listdir(dir_images) if image_name[0] != "."
-        ]
-        self.labels_name = [
-            label_name for label_name in os.listdir(dir_labels) if label_name[0] != "."
-        ]
+        # Get the list of PV_image and label names from PV and label directories (except dotfile)
+        self.images_name = [image_name for image_name in os.listdir(dir_PV) if image_name[0] != "."]        
+        self.labels_name = [label_name for label_name in os.listdir(dir_labels) if label_name[0] != "."]
 
         # Create an image -> label dict
         self.image_label_dict = {}
 
-        # Iterate through all the images' name to add them in the dict
+        # Iterate through all the PV images' name to add them in the dict
         for image_full_name in self.images_name:
             image_name, image_extension = os.path.splitext(image_full_name)
 
-            # Find the label of the image, if there is one
+            # Find the label of the image
             label_name_associated = None
             for label_full_name in self.labels_name:
                 if image_name in label_full_name:
                     label_name_associated = label_full_name
 
-            # If no label associated, then it should be a black label
-            if not label_name_associated:
-                label_name_associated = "DEFAULT"
+            self.image_label_dict[PV_image_full_name] = label_name_associated
 
-            self.image_label_dict[image_full_name] = label_name_associated
+        if (use_noPV):
+            self.dir_noPV = dir_noPV
+
+            # Get the list of noPV_image from the noPV directory (except dotfile)
+            self.noPV_images_name = [image_name for image_name in os.listdir(dir_noPV) if image_name[0] != "."]
+
+            # Iterate through all the noPV images' name to add them in the dict and to the images_name list
+            for noPV_image_full_name in self.noPV_images_name:
+                self.image_label_dict[noPV_image_full_name] = "DEFAULT"
+                # Add a '-' before the name of the file to tag it as a noPV
+                self.images_name += ('-' + noPV_image_full_name)
 
         # Shuffle the images' name to avoid having an order when retrieving the images in __getitem__
         random.shuffle(self.images_name)
@@ -62,16 +66,18 @@ class AvailableRooftopDataset(Dataset):
         image_name = self.images_name[idx]
         label_name = self.image_label_dict[image_name]
 
-        image_path = os.path.join(self.dir_images, image_name)
-        if label_name != "DEFAULT":
-            label_path = os.path.join(self.dir_labels, label_name)
+        # Retrieve the image (from dir_noPV if it is tagged with '-', else from dir_PV)
+        if (image_name[0] == '-'):
+            image_path = os.path.join(self.dir_noPV, image_name[1:])
+        else:
+            image_path = os.path.join(self.dir_PV, image_name)
 
-        # Retrieve the image
         image = io.imread(image_path)
 
-        label = np.zeros((250, 250, 3), dtype=np.uint8)
+        # Retrieve the label if the image is from PV, else the label is full black
+        label = np.zeros((250, 250, 3), dtype=np.uint8)            
         if label_name != "DEFAULT":
-            # Retrieve the label
+            label_path = os.path.join(self.dir_labels, label_name)
             label = io.imread(label_path)
 
         # Define a seed to apply the same transforms for 'image' and 'label'
