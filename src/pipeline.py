@@ -8,7 +8,16 @@ from torchvision import transforms
 import os
 
 
-def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_epochs, device, saving_frequency = 2):
+def train(
+    model,
+    criterion,
+    dataloader_train,
+    dataloader_test,
+    optimizer,
+    num_epochs,
+    device,
+    saving_frequency=2,
+):
     """
     Parameters
     ----------
@@ -23,15 +32,15 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
     Returns
     -------
     None
-    
+
     """
-    
+
     print("Starting training during {} epochs".format(num_epochs))
     avg_train_error = []
     avg_test_error = []
 
     for epoch in range(num_epochs):
-        if (epoch + 1 % saving_frequency == 0):
+        if epoch + 1 % saving_frequency == 0:
             with open("errors.txt", "w") as f:
                 f.write("Epoch {}".format(epoch))
                 f.write(str(avg_train_error))
@@ -41,16 +50,18 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
         train_error = []
         for batch_x, batch_y in dataloader_train:
             # batch_x, batch_y = sample_batched['image'], sample_batched['label']
-            batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(device, dtype=torch.float32)
+            batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(
+                device, dtype=torch.float32
+            )
 
             # Evaluate the network (forward pass)
             model.zero_grad()
             output = model(batch_x)
             
-            #output is Bx1xHxW and batch_y is BxHxW, squeezing first dimension of output to have same dimension
+            # output is Bx1xHxW and batch_y is BxHxW, squeezing first dimension of output to have same dimension
             loss = criterion(torch.squeeze(output, 1), batch_y)
             train_error.append(loss)
-
+            print(loss)
             # Compute the gradient
             loss.backward()
 
@@ -59,7 +70,7 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
 
         # Test the quality on the whole training set
         avg_train_error.append(sum(train_error).item() / len(train_error))
-        
+
         # Test the quality on the test set
         model.eval()
         accuracies_test = []
@@ -70,12 +81,18 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
 
             # Evaluate the network (forward pass)
             prediction = model(batch_x_test)
-            accuracies_test.append(criterion(torch.squeeze(prediction, 1), batch_y_test))
+            accuracies_test.append(
+                criterion(torch.squeeze(prediction, 1), batch_y_test)
+            )
         avg_test_error.append(sum(accuracies_test).item() / len(accuracies_test))
 
-        print( "Epoch {} | Train Error: {:.5f}, Test Error: {:.5f}".format( epoch, avg_train_error[-1], avg_test_error[-1] ))
-    
-    #Writing final results on the file
+        print(
+            "Epoch {} | Train Error: {:.5f}, Test Error: {:.5f}".format(
+                epoch, avg_train_error[-1], avg_test_error[-1]
+            )
+        )
+
+    # Writing final results on the file
     with open("errors.txt", "w") as f:
         f.write("Epoch {}".format(epoch))
         f.write(str(avg_train_error))
@@ -84,19 +101,25 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
     return avg_train_error, avg_test_error
 
 
-def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, dir_data = "/raid/machinelearning_course/data/", saving_frequency=2):
+def main(
+    num_epochs=10,
+    learning_rate=1e-3,
+    batch_size=4,
+    train_percentage=0.8,
+    dir_data="/raid/machinelearning_course/data/",
+    saving_frequency=2,
+):
     """
     if not torch.cuda.is_available():
         raise Exception("Things will go much quicker if you enable a GPU in Colab under 'Runtime / Change Runtime Type'")
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(torch.cuda.is_available())
-    
 
     # Instantiate the dataset
     roof_dataset = AvailableRooftopDataset(
-        dir_images = os.path.join(dir_data, "images"),#dir_data + "images/",
-        dir_labels = os.path.join(dir_data, "labels"), #dir_data + "labels/",
+        dir_images=os.path.join(dir_data, "images"),  # dir_data + "images/",
+        dir_labels=os.path.join(dir_data, "labels"),  # dir_data + "labels/",
         transform=transforms.Compose(
             [
                 transforms.ToPILImage(),
@@ -128,16 +151,16 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, 
     # criterion = IOULoss()
     # criterion = nn.BCEWithLogitsLoss()
     # criterion = GeneralLoss(jaccard_distance_loss)
-    weight_for_positive_class = 5.
+    weight_for_positive_class = 5.0
     pos_weight = torch.tensor([weight_for_positive_class]).to(device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    #criterion = DiceLoss()
+    # criterion = DiceLoss()
 
     # To load model params from a file
     # model = TheModelClass(*args, **kwargs)
     # For us: model = UNet(n_channels=3, n_classes=1, bilinear=False)
     # model.load_state_dict(torch.load(PATH))
-    # model.eval() 
+    # model.eval()
 
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
@@ -151,7 +174,7 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, 
         optimizer,
         num_epochs,
         device,
-        saving_frequency
+        saving_frequency,
     )
 
     # To save model params to a file
@@ -161,4 +184,4 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, 
 
 
 if __name__ == "__main__":
-    main(num_epochs=300, batch_size=4, dir_data="../data")
+    main(num_epochs=300, batch_size=2, dir_data="../data/")
