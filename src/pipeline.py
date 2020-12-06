@@ -29,6 +29,7 @@ def train(
     print("Starting training")
     for epoch in range(num_epochs):
         model.train()
+        
         for batch_x, batch_y in dataloader_train:
             # batch_x, batch_y = sample_batched['image'], sample_batched['label']
             batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(
@@ -41,7 +42,6 @@ def train(
             loss = criterion(output, batch_y)
             # Compute the gradient
             loss.backward()
-            print(loss)
             # Update the parameters of the model with a gradient step
             optimizer.step()
             
