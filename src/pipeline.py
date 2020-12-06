@@ -49,7 +49,6 @@ def train(
 
         train_error = []
         for batch_x, batch_y in dataloader_train:
-            # batch_x, batch_y = sample_batched['image'], sample_batched['label']
             batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(
                 device, dtype=torch.float32
             )
@@ -71,10 +70,9 @@ def train(
         # Test the quality on the test set
         model.eval()
         accuracies_test = []
-
+        print("Starting training")
         for batch_x_test, batch_y_test in dataloader_test:
-            # batch_x_test, batch_y_test = sample_batched_test['image'], sample_batched_test['label']
-            batch_x_test, batch_y_test = batch_x.to(device, dtype=torch.float32), batch_y.to(
+            batch_x_test, batch_y_test = batch_x_test.to(device, dtype=torch.float32), batch_y_test.to(
                 device, dtype=torch.float32
             )
             # Evaluate the network (forward pass)
