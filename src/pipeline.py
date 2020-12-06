@@ -1,6 +1,7 @@
 import torch
 
-from AvailableRooftopDataset import AvailableRooftopDataset
+#TODO change dataset once Ghali makes the updated one
+from TESTDATASET import AvailableRooftopDataset
 from torch.utils.data import DataLoader
 from model.unet_model import UNet
 from losses import GeneralLoss, jaccard_loss, jaccard_distance_loss, DiceLoss
