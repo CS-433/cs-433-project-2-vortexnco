@@ -4,8 +4,8 @@ from AvailableRooftopDataset import AvailableRooftopDataset
 from torch.utils.data import DataLoader
 from model.unet_model import UNet
 from losses import GeneralLoss, jaccard_loss, jaccard_distance_loss, DiceLoss
-import torch.nn as nn
 from torchvision import transforms
+import os
 
 
 def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_epochs, device, saving_frequency = 2):
@@ -23,7 +23,9 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
     Returns
     -------
     None
+    
     """
+    
     print("Starting training during {} epochs".format(num_epochs))
     avg_train_error = []
     avg_test_error = []
@@ -34,7 +36,6 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
                 f.write("Epoch {}".format(epoch))
                 f.write(str(avg_train_error))
                 f.write(str(avg_test_error))
-
         model.train()
 
         train_error = []
@@ -45,15 +46,19 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
             # Evaluate the network (forward pass)
             model.zero_grad()
             output = model(batch_x)
-            loss = criterion(output, batch_y)
-            train_error.append(loss.item())
+            
+            #output is Bx1xHxW and batch_y is BxHxW, squeezing first dimension of output to have same dimension
+            loss = criterion(torch.squeeze(output, 1), batch_y)
+            train_error.append(loss)
+
             # Compute the gradient
             loss.backward()
+
             # Update the parameters of the model with a gradient step
             optimizer.step()
 
         # Test the quality on the whole training set
-        avg_train_error.append(sum(train_error) / len(train_error))
+        avg_train_error.append(sum(train_error).item() / len(train_error))
         
         # Test the quality on the test set
         model.eval()
@@ -69,16 +74,17 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
         avg_test_error.append(sum(accuracies_test).item() / len(accuracies_test))
 
         print( "Epoch {} | Train Error: {:.5f}, Test Error: {:.5f}".format( epoch, avg_train_error[-1], avg_test_error[-1] ))
-        with open("errors.txt", "w") as f:
-            f.write("Epoch {}".format(epoch))
-            f.write(str(avg_train_error))
-            f.write(str(avg_test_error))
+    
+    #Writing final results on the file
+    with open("errors.txt", "w") as f:
+        f.write("Epoch {}".format(epoch))
+        f.write(str(avg_train_error))
+        f.write(str(avg_test_error))
 
     return avg_train_error, avg_test_error
 
 
 def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, dir_data = "/raid/machinelearning_course/data/", saving_frequency=2):
-    # If a GPU is available (should be on Colab, we will use it)
     """
     if not torch.cuda.is_available():
         raise Exception("Things will go much quicker if you enable a GPU in Colab under 'Runtime / Change Runtime Type'")
@@ -89,8 +95,8 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, 
 
     # Instantiate the dataset
     roof_dataset = AvailableRooftopDataset(
-        dir_images = dir_data + "images/",
-        dir_labels = dir_data + "labels/",
+        dir_images = os.path.join(dir_data, "images"),#dir_data + "images/",
+        dir_labels = os.path.join(dir_data, "labels"), #dir_data + "labels/",
         transform=transforms.Compose(
             [
                 transforms.ToPILImage(),
@@ -122,7 +128,9 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, 
     # criterion = IOULoss()
     # criterion = nn.BCEWithLogitsLoss()
     # criterion = GeneralLoss(jaccard_distance_loss)
-    criterion = DiceLoss()
+    weight_for_positive_class = 5.
+    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([weight_for_positive_class]))
+    #criterion = DiceLoss()
 
     # To load model params from a file
     # model = TheModelClass(*args, **kwargs)
