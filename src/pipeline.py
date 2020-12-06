@@ -76,7 +76,7 @@ def train(
             batch_x_test, batch_y_test = batch_x_test.to(device, dtype=torch.float32), batch_y_test.to(
                 device, dtype=torch.float32
             )
-            print("NEW")
+            print("NEW", batch_x_test.shape)
             # Evaluate the network (forward pass)
             prediction = model(batch_x_test)
             accuracies_test.append(
