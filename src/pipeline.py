@@ -129,7 +129,8 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, 
     # criterion = nn.BCEWithLogitsLoss()
     # criterion = GeneralLoss(jaccard_distance_loss)
     weight_for_positive_class = 5.
-    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([weight_for_positive_class]))
+    pos_weight = torch.tensor([weight_for_positive_class]).to(device)
+    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     #criterion = DiceLoss()
 
     # To load model params from a file
