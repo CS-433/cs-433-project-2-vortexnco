@@ -70,7 +70,7 @@ def train(model, criterion, dataloader_train, dataloader_test, optimizer, num_ep
 
             # Evaluate the network (forward pass)
             prediction = model(batch_x_test)
-            accuracies_test.append(criterion(prediction, batch_y_test))
+            accuracies_test.append(criterion(torch.squeeze(prediction, 1), batch_y_test))
         avg_test_error.append(sum(accuracies_test).item() / len(accuracies_test))
 
         print( "Epoch {} | Train Error: {:.5f}, Test Error: {:.5f}".format( epoch, avg_train_error[-1], avg_test_error[-1] ))
@@ -161,4 +161,4 @@ def main(num_epochs=10, learning_rate=1e-3, batch_size=4, train_percentage=0.8, 
 
 
 if __name__ == "__main__":
-    main(num_epochs=300, batch_size=50)
+    main(num_epochs=300, batch_size=4, dir_data="../data")
