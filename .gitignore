@@ -10,5 +10,6 @@ raw_data/*
 *.zip
 *.tar
 *.png
+*.txt
 
 __pycache__/
