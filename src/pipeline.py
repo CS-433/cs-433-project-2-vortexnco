@@ -148,7 +148,6 @@ def main(
     # criterion = IOULoss()
     # criterion = nn.BCEWithLogitsLoss()
     # criterion = GeneralLoss(jaccard_distance_loss)
-    weight_for_positive_class = 5.0
     pos_weight = torch.tensor([weight_for_positive_class]).to(device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     # criterion = DiceLoss()
@@ -178,7 +177,8 @@ def main(
     # torch.save(model.state_dict(), PATH)
 
     print(avg_train_error, avg_test_error)
-
+    
+    return model, avg_train_error, avg_test_error
 
 if __name__ == "__main__":
     main(num_epochs=300, batch_size=2, dir_data="../data/")
