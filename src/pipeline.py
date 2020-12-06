@@ -104,6 +104,7 @@ def main(
     train_percentage=0.8,
     dir_data="/raid/machinelearning_course/data/",
     saving_frequency=2,
+    weight_for_positive_class = 5.25
 ):
     """
     if not torch.cuda.is_available():
