@@ -135,7 +135,7 @@ def main(
     filename_model_parameters_to_save : str = None
 ):
     """
-    
+    Main training function with tunable parameters.
 
     Parameters
     ----------
