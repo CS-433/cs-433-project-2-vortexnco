@@ -136,7 +136,7 @@ def main(
     gamma_scheduler : float = None,
     batch_size : int = 32,
     train_percentage : float = 0.8,
-    dir_data : str ="/raid/machinelearning_course/data/",
+    dir_data : str = "/raid/machinelearning_course/data/",
     use_noPV : bool = False,
     prop_noPV : float = 0.0,
     min_rescale_images : float = 0.6,
@@ -227,7 +227,7 @@ def main(
 
     # Instantiate the dataset
     roof_dataset = AvailableRooftopDataset(
-        dir_PV = os.path.join(dir_data, "images"), 
+        dir_PV = os.path.join(dir_data, "PV"), 
         dir_noPV = os.path.join(dir_data, "noPV"), 
         dir_labels = os.path.join(dir_data, "labels"),  
         transform = transforms.Compose(
