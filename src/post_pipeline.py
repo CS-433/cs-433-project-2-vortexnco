@@ -23,27 +23,27 @@ false_positive = [255, 0, 0]
 false_negative = [255, 215, 0]
 
 # If color values are binary
-# COMPARE_MAP_01 = {
-#     (2,0)  : true_positive,
-#     (0,0)  : true_negative,
-#     (1,1)  : false_positive,
-#     (1,-1) : false_negative
-# }
+COMPARE_MAP_01 = {
+    (2,0)  : true_positive,
+    (0,0)  : true_negative,
+    (1,1)  : false_positive,
+    (1,-1) : false_negative
+}
 
 # If color values are 3 bytes
-COMPARE_MAP_uint8 = {
-    (254, 0): true_positive,
-    (0, 0): true_negative,
-    (255, 255): false_positive,
-    (255, 1): false_negative,
-}
+# COMPARE_MAP_uint8 = {
+#     (254, 0): true_positive,
+#     (0, 0): true_negative,
+#     (255, 255): false_positive,
+#     (255, 1): false_negative,
+# }
 
 
 def compare_labels(true_label, predicted_label):
     """Outputs an array annotated as TP, FP, TN or FN"""
     height, width = true_label.shape
     comp_array = np.array([predicted_label + true_label, predicted_label - true_label])
-    f = lambda i, j: COMPARE_MAP_uint8[tuple(comp_array[:, i, j])]
+    f = lambda i, j: COMPARE_MAP_01[tuple(comp_array[:, i, j])]
 
     result = np.empty((3, height, width), dtype=int)
     for i, j in product(range(height), range(height)):
