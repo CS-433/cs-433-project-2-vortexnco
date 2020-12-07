@@ -2,6 +2,7 @@ import torch
 
 from AvailableRooftopDataset import AvailableRooftopDataset
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import MultiStepLR
 from model.unet_model import UNet
 from torchvision import transforms
 import os
@@ -13,6 +14,8 @@ def train(
     dataloader_train : torch.utils.data.DataLoader,
     dataloader_test : torch.utils.data.DataLoader,
     optimizer : torch.optim.Optimizer,
+    use_scheduler : bool,
+    scheduler : torch.optim.lr_scheduler,
     num_epochs : int,
     device,
     file_losses : str,
@@ -31,6 +34,10 @@ def train(
         Dataloader to test the model during training after each epoch.
     optimizer : torch.optim.Optimizer
         Optimizer used for training.
+    use_scheduler : bool
+        If True, uses a  MultiStepLR scheduler to adapt the learning rate during training.
+    scheduler : torch.optim.lr_scheduler.MultiStepLR
+        Scheduler to use to adapt learning rate during training.
     num_epochs : int
         Number of epochs to train for.
     device :
@@ -82,6 +89,11 @@ def train(
 
             # Update the parameters of the model with a gradient step
             optimizer.step()
+        
+        #Each scheduler step is done after a hole epoch
+        #Once milestones epochs are reached the learning rates is decreased.
+        if use_scheduler:
+            scheduler.step()
             
         # Test the quality on the whole training set
         avg_train_error.append(sum(train_error).item() / len(train_error))
@@ -119,6 +131,9 @@ def train(
 def main(
     num_epochs : int = 100,
     learning_rate : float = 1e-3,
+    use_scheduler : bool = False,
+    milestones_scheduler : list = None,
+    gamma_scheduler : float = None,
     batch_size : int = 32,
     train_percentage : float = 0.8,
     dir_data : str ="/raid/machinelearning_course/data/",
@@ -143,6 +158,14 @@ def main(
         Number of epochs to train. The default is 100.
     learning_rate : float, optional
         Learning rate of the Optimizer. The default is 1e-3.
+    use_scheduler : bool 
+        If True, use a MultiStepLR. You should the next two parameters if used.
+    milestones_scheduler : list
+        List of epochs at which to adapt the learning rate.
+    gamma_scheduler : float
+        Value by which to multiply the learning rate at each of the previously
+        define milestone epochs.
+        Example values are 0.5 or 0.1.
     batch_size : int, optional
         Number of samples per batch in the Dataloaders. The default is 32.
     train_percentage : float, optional
@@ -252,12 +275,17 @@ def main(
         model.load_state_dict(torch.load(path_model_parameters_to_load))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    if use_scheduler:
+        scheduler = MultiStepLR(optimizer, milestones=milestones_scheduler, gamma=gamma_scheduler)
+    
     avg_train_error, avg_test_error = train(
         model,
         criterion,
         roof_dataloader_train,
         roof_dataloader_test,
         optimizer,
+        use_scheduler,
+        scheduler,
         num_epochs,
         device,
         file_losses,
