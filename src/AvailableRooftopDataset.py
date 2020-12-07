@@ -4,7 +4,7 @@ import random
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from skimage import io, transform
+from skimage import io
 
 class AvailableRooftopDataset(Dataset):
     """Available Rooftop Dataset."""
@@ -93,12 +93,12 @@ class AvailableRooftopDataset(Dataset):
         # Apply the transforms if any
         if self.transform:
             # Apply transforms on image (and define seed)
-            #torch.manual_seed(seed)
+            torch.manual_seed(seed)
             random.seed(seed)
             image = self.transform(image)
 
             # Apply transforms on label (and redefine seed)
-            #torch.manual_seed(seed)
+            torch.manual_seed(seed)
             random.seed(seed)
             label = self.transform(label)
 
