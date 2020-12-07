@@ -55,9 +55,6 @@ class AvailableRooftopDataset(Dataset):
                 # Add a '-' before the name of the file to tag it as a noPV
                 self.images_name.append('-' + noPV_image_full_name)
 
-        # Shuffle the images' name to avoid having an order when retrieving the images in __getitem__
-        random.shuffle(self.images_name)
-
     def __len__(self):
         return len(self.image_label_dict)
 
