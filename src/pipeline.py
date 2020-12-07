@@ -2,17 +2,17 @@ import torch
 
 from AvailableRooftopDataset import AvailableRooftopDataset
 from torch.utils.data import DataLoader
+from helpers import get_DataLoaders
 from torch.optim.lr_scheduler import MultiStepLR
 from model.unet_model import UNet
 from torchvision import transforms
 import os
 
-
 def train(
     model : torch.nn.Module,
     criterion : torch.nn.modules.loss._Loss,
     dataloader_train : torch.utils.data.DataLoader,
-    dataloader_test : torch.utils.data.DataLoader,
+    dataloader_validation : torch.utils.data.DataLoader,
     optimizer : torch.optim.Optimizer,
     use_scheduler : bool,
     scheduler : torch.optim.lr_scheduler,
@@ -30,8 +30,8 @@ def train(
         Criterion (Loss) to use during training.
     dataloader_train : torch.utils.data.DataLoader
         Dataloader for training.
-    dataloader_test : torch.utils.data.DataLoader
-        Dataloader to test the model during training after each epoch.
+    dataloader_validation : torch.utils.data.DataLoader
+        Dataloader to validate the model during training after each epoch.
     optimizer : torch.optim.Optimizer
         Optimizer used for training.
     use_scheduler : bool
@@ -49,15 +49,15 @@ def train(
 
     Returns
     -------
-    avg_train_error, avg_test_error : list of float, list of float
+    avg_train_error, avg_validation_error : list of float, list of float
         List of Train errors or losses after each epoch.
-        List of Test errors or losses after each epoch.
+        List of Validation errors or losses after each epoch.
 
     """
 
     print("Starting training during {} epochs".format(num_epochs))
     avg_train_error = []
-    avg_test_error = []
+    avg_validation_error = []
 
     for epoch in range(num_epochs):
         
@@ -66,7 +66,7 @@ def train(
             with open(file_losses, "w") as f:
                 f.write("Epoch {}".format(epoch))
                 f.write(str(avg_train_error))
-                f.write(str(avg_test_error))
+                f.write(str(avg_validation_error))
                 
         
         model.train()
@@ -98,24 +98,24 @@ def train(
         # Test the quality on the whole training set
         avg_train_error.append(sum(train_error).item() / len(train_error))
         
-        # Test the quality on the test set
+        # Validate the quality on the validation set
         model.eval()
-        accuracies_test = []
+        accuracies_validation = []
         with torch.no_grad():
-            for batch_x_test, batch_y_test in dataloader_test:
-                batch_x_test, batch_y_test = batch_x_test.to(device, dtype=torch.float32), batch_y_test.to(
+            for batch_x_validation, batch_y_validation in dataloader_validation:
+                batch_x_validation, batch_y_validation = batch_x_validation.to(device, dtype=torch.float32), batch_y_validation.to(
                     device, dtype=torch.float32
                 )
                 # Evaluate the network (forward pass)
-                prediction = model(batch_x_test)
-                accuracies_test.append(
-                    criterion(torch.squeeze(prediction, 1), batch_y_test)
+                prediction = model(batch_x_validation)
+                accuracies_validation.append(
+                    criterion(torch.squeeze(prediction, 1), batch_y_validation)
                 )
-            avg_test_error.append(sum(accuracies_test).item() / len(accuracies_test))
+            avg_validation_error.append(sum(accuracies_validation).item() / len(accuracies_validation))
 
         print(
             "Epoch {} | Train Error: {:.5f}, Test Error: {:.5f}".format(
-                epoch, avg_train_error[-1], avg_test_error[-1]
+                epoch, avg_train_error[-1], avg_validation_error[-1]
             )
         )
 
@@ -123,9 +123,9 @@ def train(
     with open(file_losses, "w") as f:
         f.write("Epoch {}".format(epoch))
         f.write(str(avg_train_error))
-        f.write(str(avg_test_error))
+        f.write(str(avg_validation_error))
 
-    return avg_train_error, avg_test_error
+    return avg_train_error, avg_validation_error
 
 
 def main(
@@ -135,7 +135,9 @@ def main(
     milestones_scheduler : list = None,
     gamma_scheduler : float = None,
     batch_size : int = 32,
-    train_percentage : float = 0.8,
+    train_percentage : float = 0.7,
+    validation_percentage : float = 0.15,
+    test_percentage : float = 0.15,
     dir_data : str ="/raid/machinelearning_course/data/",
     use_noPV : bool = False,
     prop_noPV : float = 0.0,
@@ -169,7 +171,11 @@ def main(
     batch_size : int, optional
         Number of samples per batch in the Dataloaders. The default is 32.
     train_percentage : float, optional
-        Percentage of the Dataset to be used for Training. The default is 0.8.
+        Percentage of the Dataset to be used for Training. The default is 0.7.
+    validation_percentage : float, optional
+        Percentage of the Dataset to be used for Validation. The default is 0.15.
+    train_percentage : float, optional
+        Percentage of the Dataset to be used for Testing. The default is 0.15.
     dir_data : str, optional
         Directory where the folders "/images", "/labels" and "noPV/" are.
         The default is "/raid/machinelearning_course/data/".
@@ -217,8 +223,8 @@ def main(
         Model after training.
     avg_train_error : list of float
         List of Train errors or losses after each epoch.
-    avg_test_error : list of float
-        List of Test errors or losses after each epoch.
+    avg_validation_error : list of float
+        List of Validation errors or losses after each epoch.
 
     """
 
@@ -242,24 +248,13 @@ def main(
         prop_noPV = prop_noPV 
     )
 
-    # Split the dataset in train_set and test_set
-    dataset_length = len(roof_dataset)
-    train_dataset_length = int(dataset_length * train_percentage)
-    test_dataset_length = dataset_length - train_dataset_length
-    
-    roof_dataset_train, roof_dataset_test = torch.utils.data.random_split(
+    roof_dataloader_train, roof_dataloader_validation, _ = get_DataLoaders(
         roof_dataset,
-        [train_dataset_length, test_dataset_length],
-        generator=torch.Generator().manual_seed(42),
-    )
-
-    # Create dataloaders associated to train/test set
-    roof_dataloader_train = DataLoader(
-        roof_dataset_train, batch_size=batch_size, shuffle=True, num_workers=0
-    )
-    roof_dataloader_test = DataLoader(
-        roof_dataset_test, batch_size=batch_size, shuffle=True, num_workers=0
-    )
+        train_percentage,
+        validation_percentage,
+        test_percentage,
+        batch_size
+        )
 
     #Creat Binary cross entropy loss with a weight associated with the positive pixels.
     #A weight for the positive class >1 increases recall.
@@ -278,11 +273,11 @@ def main(
     if use_scheduler:
         scheduler = MultiStepLR(optimizer, milestones=milestones_scheduler, gamma=gamma_scheduler)
     
-    avg_train_error, avg_test_error = train(
+    avg_train_error, avg_validation_error = train(
         model,
         criterion,
         roof_dataloader_train,
-        roof_dataloader_test,
+        roof_dataloader_validation,
         optimizer,
         use_scheduler,
         scheduler,
@@ -296,9 +291,9 @@ def main(
         path_model_parameters_to_save = os.path.join(dir_for_model_parameters, filename_model_parameters_to_save)
         torch.save(model.state_dict(), path_model_parameters_to_save)
 
-    print(avg_train_error, avg_test_error)
+    print(avg_train_error, avg_validation_error)
     
-    return model, avg_train_error, avg_test_error
+    return model, avg_train_error, avg_validation_error    
 
 if __name__ == "__main__":
     main()
