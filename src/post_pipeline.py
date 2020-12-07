@@ -52,6 +52,22 @@ def compare_labels(true_label, predicted_label):
     return result.transpose((1,2,0))
 
 def show_label_comparison(true_label, predicted_label):
+    """
+    Plots an array annotaded with TP, FP, TN and FN
+
+    Parameters
+    ----------
+    true_label : ndarray of 1s and 0s
+        True label.
+    predicted_label : ndarray of 1s and 0s
+        Prediction from the model.
+
+    Returns
+    -------
+    None.
+
+    """
+    
     comparison = compare_labels(true_label, predicted_label)
     plt.imshow(comparison)
     TP = mpatches.Patch(color="green", label="TP")
