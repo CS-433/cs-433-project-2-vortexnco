@@ -46,6 +46,8 @@ class AvailableRooftopDataset(Dataset):
             self.noPV_images_name = [image_name for image_name in os.listdir(dir_noPV) if image_name[0] != "."]
 
             # Keep a proportion of (random) noPV images
+            torch.manual_seed(0)
+            random.seed(0)
             random.shuffle(self.noPV_images_name)
             self.noPV_images_name = self.noPV_images_name[:int(len(self.noPV_images_name) * prop_noPV)]
 
