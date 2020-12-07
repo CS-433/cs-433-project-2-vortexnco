@@ -49,7 +49,17 @@ def compare_labels(true_label, predicted_label):
     for i, j in product(range(height), range(height)):
         result[:, i, j] = f(i, j)
 
-    return result.T
+    return result.transpose((1,2,0))
+
+def show_label_comparison(true_label, predicted_label):
+    comparison = compare_labels(true_label, predicted_label)
+    plt.imshow(comparison)
+    TP = mpatches.Patch(color="green", label="TP")
+    TN = mpatches.Patch(color="black", label="TN")
+    FP = mpatches.Patch(color="red", label="FP")
+    FN = mpatches.Patch(color=[255 / 255, 215 / 255, 0], label="FN")
+    plt.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -65,12 +75,4 @@ if __name__ == "__main__":
     plt.show()
     plt.imshow(labels[1])
     plt.show()
-    true_value = np.array([1, 1, 1], dtype=np.uint8)
-    array = compare_labels(labels[0], labels[1])
-    plt.imshow(array)
-    TP = mpatches.Patch(color="green", label="TP")
-    TN = mpatches.Patch(color="black", label="TN")
-    FP = mpatches.Patch(color="red", label="FP")
-    FN = mpatches.Patch(color=[255 / 255, 215 / 255, 0], label="FN")
-    plt.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
-    plt.show()
+    show_label_comparison(labels[0], labels[1])
