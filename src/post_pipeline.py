@@ -23,33 +23,59 @@ false_positive = [255, 0, 0]
 false_negative = [255, 215, 0]
 
 # If color values are binary
-# COMPARE_MAP_01 = {
-#     (2,0)  : true_positive,
-#     (0,0)  : true_negative,
-#     (1,1)  : false_positive,
-#     (1,-1) : false_negative
-# }
+COMPARE_MAP_01 = {
+    (2,0)  : true_positive,
+    (0,0)  : true_negative,
+    (1,1)  : false_positive,
+    (1,-1) : false_negative
+}
 
 # If color values are 3 bytes
-COMPARE_MAP_uint8 = {
-    (254, 0): true_positive,
-    (0, 0): true_negative,
-    (255, 255): false_positive,
-    (255, 1): false_negative,
-}
+# COMPARE_MAP_uint8 = {
+#     (254, 0): true_positive,
+#     (0, 0): true_negative,
+#     (255, 255): false_positive,
+#     (255, 1): false_negative,
+# }
 
 
 def compare_labels(true_label, predicted_label):
     """Outputs an array annotated as TP, FP, TN or FN"""
     height, width = true_label.shape
     comp_array = np.array([predicted_label + true_label, predicted_label - true_label])
-    f = lambda i, j: COMPARE_MAP_uint8[tuple(comp_array[:, i, j])]
+    f = lambda i, j: COMPARE_MAP_01[tuple(comp_array[:, i, j])]
 
     result = np.empty((3, height, width), dtype=int)
     for i, j in product(range(height), range(height)):
         result[:, i, j] = f(i, j)
 
-    return result.T
+    return result.transpose((1,2,0))
+
+def show_label_comparison(true_label, predicted_label):
+    """
+    Plots an array annotaded with TP, FP, TN and FN
+
+    Parameters
+    ----------
+    true_label : ndarray of 1s and 0s
+        True label.
+    predicted_label : ndarray of 1s and 0s
+        Prediction from the model.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    comparison = compare_labels(true_label, predicted_label)
+    plt.imshow(comparison)
+    TP = mpatches.Patch(color="green", label="TP")
+    TN = mpatches.Patch(color="black", label="TN")
+    FP = mpatches.Patch(color="red", label="FP")
+    FN = mpatches.Patch(color=[255 / 255, 215 / 255, 0], label="FN")
+    plt.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -65,12 +91,4 @@ if __name__ == "__main__":
     plt.show()
     plt.imshow(labels[1])
     plt.show()
-    true_value = np.array([1, 1, 1], dtype=np.uint8)
-    array = compare_labels(labels[0], labels[1])
-    plt.imshow(array)
-    TP = mpatches.Patch(color="green", label="TP")
-    TN = mpatches.Patch(color="black", label="TN")
-    FP = mpatches.Patch(color="red", label="FP")
-    FN = mpatches.Patch(color=[255 / 255, 215 / 255, 0], label="FN")
-    plt.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
-    plt.show()
+    show_label_comparison(labels[0], labels[1])
