@@ -74,7 +74,7 @@ def get_DataLoaders(roof_dataset : AvailableRooftopDataset,
     # Split the dataset in train_set and test_set
     dataset_length = len(roof_dataset)
     train_dataset_length = int(dataset_length * train_percentage)
-    validation_dataset_length = int(dataset_length * train_percentage)
+    validation_dataset_length = int(dataset_length * validation_percentage)
     test_dataset_length = dataset_length - train_dataset_length - validation_dataset_length
     
     roof_dataset_train, roof_dataset_validation, roof_dataset_test = torch.utils.data.random_split(
