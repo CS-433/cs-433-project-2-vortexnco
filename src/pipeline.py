@@ -270,6 +270,7 @@ def main(
         model.load_state_dict(torch.load(path_model_parameters_to_load))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    scheduler = None
     if use_scheduler:
         scheduler = MultiStepLR(optimizer, milestones=milestones_scheduler, gamma=gamma_scheduler)
     
