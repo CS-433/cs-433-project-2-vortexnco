@@ -13,7 +13,8 @@ from torchvision import transforms
 from model.unet_model import UNet
 
 dataFolder = "../data"
-imageFolder = os.path.join(dataFolder, "images")
+PVimageFolder = os.path.join(dataFolder, "PV")
+noPVimageFolder = os.path.join(dataFolder, "noPV")
 labelFolder = os.path.join(dataFolder, "labels")
 test_filename = "DOP25_LV03_1301_11_2015_1_15_497500.0_119062.5.png"
 
@@ -21,10 +22,10 @@ test_filename = "DOP25_LV03_1301_11_2015_1_15_497500.0_119062.5.png"
 # NEG = 0
 # true_value = 255
 map_rgb = {
-    "tp" : [0, 255, 0]
-    "tn" : [0, 0, 0]
-    "fp" : [255, 0, 0]
-    "fn" : [255, 215, 0]
+    "tp" : [0, 255, 0],
+    "tn" : [0, 0, 0],
+    "fp" : [255, 0, 0],
+    "fn" : [255, 215, 0],
 }
 
 # If color values are binary
@@ -107,7 +108,7 @@ def post_processing_tuning(
 
     # Instantiate the dataset
     roof_dataset = AvailableRooftopDataset(
-        dir_PV = os.path.join(dir_data, "images"), 
+        dir_PV = os.path.join(dir_data, "PV"), 
         dir_noPV = os.path.join(dir_data, "noPV"), 
         dir_labels = os.path.join(dir_data, "labels"),  
         transform = transforms.Compose(
@@ -189,6 +190,7 @@ def post_processing_tuning(
             
 
 def eval_model(model, val_set):
+    raise NotImplementedError()
 
 
 if __name__ == "__main__":
