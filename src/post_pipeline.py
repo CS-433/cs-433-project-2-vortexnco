@@ -78,7 +78,10 @@ def show_label_comparison(true_label, predicted_label):
     
     comparison = compare_labels(true_label, predicted_label)
     # Recover comparison array and convert it to RGB
+    height, width = true_label.shape
     comparison_rgb = np.empty((height, width, 3), dtype=int)
+    f = lambda i, j: map_rgb[comparison[i, j]]
+    
     for i, j in product(range(height), range(width)):
         comparison_rgb[i, j, :] = f(i, j)
 
