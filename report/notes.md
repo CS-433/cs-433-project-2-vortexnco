@@ -3,6 +3,11 @@ Not using noPV at all (except when it's resized into it)
 
 Used weighted loss because there's a lot of negative.
 
+Weight formula #negative/#positive
+0%noPV : 5.25
+20%noPV : 5.75
+100%noPV : 8.0
+
 Adapt learning rate
 
 Post-processing: 
