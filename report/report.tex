@@ -1,0 +1,68 @@
+\documentclass[10pt,conference,compsocconf]{IEEEtran}
+
+\usepackage{hyperref}
+\usepackage{graphicx}	% For figure environment
+\usepackage{makecell}	% For multiline cells in tables
+% \usepackage{subfig}
+\usepackage{subcaption}
+
+% For the figures
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{changepage}
+\usepackage{tikz}
+\usepackage{pgf}
+\usetikzlibrary{graphs, shapes}
+
+% justify text in bibliography
+\usepackage{ragged2e}  % for \justifying
+\usepackage{etoolbox}
+\apptocmd{\thebibliography}{\justifying}{}{}
+\usepackage{natbib} 
+\bibliographystyle{plainnat}
+% links in blue
+\definecolor{links}{HTML}{2A1B81}
+\hypersetup{colorlinks=true,citecolor=blue,linkcolor=,urlcolor=links}
+
+
+\begin{document}
+\title{{\LARGE Automatic detection of available area for rooftop solar panel installations}\vspace{-3mm}}    
+
+\author{
+  Alexander APOSTOLOV (alexander.apostolov@epfl.ch)\\
+  Auguste BAUM (auguste.baum@epfl.ch)\\
+  Ghali CHRAIBI (ghali.chraibi@epfl.ch)\\
+  \\
+  Supervisor : Roberto Castello (roberto.castello@epfl.ch)\\ EPFL Laboratory of Solar Energy and Building Physics\\
+  \\
+  \textit{CS-433 Machine Learning --- December 2020, EPFL, Switzerland}
+}
+\maketitle
+
+\begin{abstract}
+  Some cool abstract.
+\end{abstract}
+
+\section{Introduction}
+Some cool intro.
+
+\section{Models and Methods}
+Models and methods explained here.
+Example of citing a paper: Adam~\citep{kingma2014adam}
+
+\section{Results}
+Results are shown here.
+
+\section{Discussion}
+Discussion is done here.
+
+\section{Conclusion}
+Some amazing conclusion, basically saying we need a Nobel Prize.
+
+%\section*{Acknowledgements}
+
+\bibliographystyle{IEEEtran}
+\bibliography{report}
+
+
+\end{document}
