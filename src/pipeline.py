@@ -269,7 +269,7 @@ def main(
 
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
-    
+
     if load_model_parameters:
         path_model_parameters_to_load = os.path.join(dir_for_model_parameters, filename_model_parameters_to_load)
         model.load_state_dict(torch.load(path_model_parameters_to_load))

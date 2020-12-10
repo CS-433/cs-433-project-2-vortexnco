@@ -13,3 +13,4 @@ raw_data/*
 *.txt
 
 __pycache__/
+stuff/
