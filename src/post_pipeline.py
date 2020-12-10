@@ -4,6 +4,7 @@ import matplotlib.patches as mpatches
 import numpy as np
 import os
 import random
+import torch
 
 from model.unet_model import UNet
 from PIL import Image
@@ -21,6 +22,7 @@ labelFolder = os.path.join(dataFolder, "labels")
 # test_filename = "DOP25_LV03_1301_11_2015_1_15_497500.0_119062.5.png"
 
 map_rgb = {0: [0, 255, 0], 1: [0, 0, 0], 2: [255, 0, 0], 3: [255, 215, 0]}
+
 
 # If color values are binary
 COMPARE_MAP_01 = {
@@ -64,6 +66,8 @@ def show_label_comparison(true_label, predicted_label):
     height, width = comparison.shape
     # Convert to RGB
     comparison_rgb = np.empty((height, width, 3), dtype=int)
+    f = lambda i, j: map_rgb[comparison[i, j]]
+    
     for i, j in product(range(height), range(width)):
         comparison_rgb[i, j, :] = map_rgb[comparison[i, j]]
 
@@ -75,6 +79,104 @@ def show_label_comparison(true_label, predicted_label):
     plt.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.show()
 
+def post_processing_tuning(
+        batch_size : int = 32,
+        train_percentage : float = 0.7,
+        validation_percentage : float = 0.15,
+        test_percentage : float = 0.15,
+        dir_data : str ="/raid/machinelearning_course/data/",
+        use_noPV : bool = False,
+        prop_noPV : float = 0.0,
+        min_rescale_images : float = 0.6,
+        dir_for_model_parameters : str = "../saved_models",
+        filename_model_parameters_to_load : str = None,
+    ):
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("GPU is {}available.".format("" if torch.cuda.is_available() else "NOT "))
+
+    # Instantiate the dataset
+    roof_dataset = AvailableRooftopDataset(
+        dir_PV = os.path.join(dir_data, "PV"), 
+        dir_noPV = os.path.join(dir_data, "noPV"), 
+        dir_labels = os.path.join(dir_data, "labels"),  
+        transform = transforms.Compose(
+            [
+                transforms.ToPILImage(),
+                transforms.RandomResizedCrop(250, scale=(min_rescale_images, 1.0), ratio=(1.0, 1.0)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+            ]
+        ),
+        use_noPV = use_noPV,
+        prop_noPV = prop_noPV 
+    )
+
+    # Create the DataLoaders (if used with default 0.7 / 0.15 / 0.15 will be the same as the ones used during training)
+    _, roof_dataloader_validation, roof_dataloader_test = get_DataLoaders(
+        roof_dataset,
+        train_percentage,
+        validation_percentage,
+        test_percentage,
+        batch_size
+        )
+    
+    model = UNet(n_channels=3, n_classes=1, bilinear=False)
+    model = model.to(device)
+    path_model_parameters_to_load = os.path.join(dir_for_model_parameters, filename_model_parameters_to_load)
+    model.load_state_dict(torch.load(path_model_parameters_to_load))
+    
+    model.eval()
+    
+    #torch.no_grad() in order not to compute gradients (better performance and memory)
+    with torch.no_grad():
+        for batch_x, batch_y in roof_dataloader_validation:
+            batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(
+                device, dtype=torch.float32
+            )
+            
+            #shape is BxHxWxC usually (batch_size, 250, 250, 3)
+            image_numpy = batch_x.cpu().numpy().transpose((0,2,3,1))
+            
+            #output have not yet passed a sigmoid layer when exiting the model
+            #shape is (batch_size, 1, 250, 250)
+            output = model(batch_x)
+            
+            #shape of output_numpy is (batch_size, 250, 250)
+            output_numpy = np.squeeze(output.cpu().numpy())
+            
+            #sigmoid function to get the probabilities between 0 and 1
+            #shape of probabilities_numpy is (batch_size, 250, 250)
+            probabilities_numpy = 1/(1 + np.exp(-output_numpy)) 
+            
+            threshold_true_label = 0.5
+            threshold_prediction = 0.9
+            
+            #shape of decision_numpy is (batch_size, 250, 250) 
+            decision_numpy = np.where(probabilities_numpy>threshold_prediction, 1., 0.)
+            
+            #shape of label_numpy is (batch_size, 250, 250) 
+            label_numpy = batch_y.cpu().numpy()
+            # need to threshold because RandomResizedCrop transorm can change the pixel value
+            # need to put back all pixels to 0 or 1
+            label_numpy = np.where(label_numpy>threshold_true_label, 1., 0.)
+            
+            ##########
+            #Insert your code here for validation etc... according to thresholds
+            # you can do the same after with the test_set
+            #example below of some plots:
+            for i in range(batch_size):
+                plt.imshow(image_numpy)
+                plt.show()
+                plt.imshow(label_numpy)
+                plt.show()
+                plt.imshow(decision_numpy)
+                plt.show()
+                show_label_comparison(label_numpy, decision_numpy)
+                print("Exiting all loops to avoid printing all images")
+                break
+            break
+            
 
 def eval_model(model, val_set):
     """Returns evaluation measures over a validation set."""
@@ -143,3 +245,4 @@ if __name__ == "__main__":
     # plt.imshow(labels[1])
     # plt.show()
     # show_label_comparison(labels[0], labels[1])
+    post_processing_tuning(filename_model_parameters_to_load = "some_cool_model.pt")

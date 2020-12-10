@@ -46,6 +46,8 @@ class AvailableRooftopDataset(Dataset):
             self.noPV_images_name = [image_name for image_name in os.listdir(dir_noPV) if image_name[0] != "."]
 
             # Keep a proportion of (random) noPV images
+            torch.manual_seed(0)
+            random.seed(0)
             random.shuffle(self.noPV_images_name)
             self.noPV_images_name = self.noPV_images_name[:int(len(self.noPV_images_name) * prop_noPV)]
 
@@ -54,9 +56,6 @@ class AvailableRooftopDataset(Dataset):
                 self.image_label_dict[noPV_image_full_name] = "DEFAULT"
                 # Add a '-' before the name of the file to tag it as a noPV
                 self.images_name.append('-' + noPV_image_full_name)
-
-        # Shuffle the images' name to avoid having an order when retrieving the images in __getitem__
-        random.shuffle(self.images_name)
 
     def __len__(self):
         return len(self.image_label_dict)
