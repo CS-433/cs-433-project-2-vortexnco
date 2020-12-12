@@ -7,6 +7,7 @@ Weight formula #negative/#positive
 0%noPV : 5.25
 20%noPV : 5.75
 100%noPV : 8.0
+Any data to justify?
 
 Adapt learning rate
 

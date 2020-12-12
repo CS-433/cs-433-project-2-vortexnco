@@ -8,18 +8,89 @@ from model.unet_model import UNet
 from torchvision import transforms
 import os
 
+
+def load_data(
+    dir_data: str,
+    prop_noPV: float,
+    min_rescale_images: float,
+    batch_size: int,
+    train_percentage: float,
+    validation_percentage: float,
+):
+    """
+    Create the DataLoader objects that will generate the training, validation and test sets.
+
+    Parameters
+    ----------
+    dir_data : str
+        Directory where the folders "/images", "/labels" and "noPV/" are.
+    prop_noPV : float
+        Proportion of all noPV images to add.
+    min_rescale_images : float
+        Minimum proportion of the image to keep for the RandomResizedCrop transform.
+    batch_size : int
+        Number of samples per batch in the DataLoaders.
+    train_percentage : float
+        Percentage of the Dataset to be used for Training.
+    validation_percentage : float
+        Percentage of the Dataset to be used for Validation.
+
+    Returns
+    -------
+    train_set : torch.utils.data.DataLoader
+        Training DataLoader.
+    validation_set : torch.utils.data.DataLoader
+        Validation DataLoader.
+    test_set : torch.utils.data.DataLoader
+        Test DataLoader.
+    """
+
+    # Choose which transforms to apply
+    transform = transforms.Compose(
+        [
+            transforms.ToPILImage(),
+            transforms.RandomResizedCrop(
+                250, scale=(min_rescale_images, 1.0), ratio=(1.0, 1.0)
+            ),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+        ]
+    )
+
+    # Instantiate Dataset object
+    roof_dataset = AvailableRooftopDataset(
+        dir_PV=os.path.join(dir_data, "PV"),
+        dir_noPV=os.path.join(dir_data, "noPV"),
+        dir_labels=os.path.join(dir_data, "labels"),
+        transform=transform,
+        prop_noPV=prop_noPV,
+    )
+
+    # Instantiate DataLoader objects according to the splits
+    test_percentage = 1 - train_percentage - validation_percentage
+    train_set, validation_set, test_set = get_DataLoaders(
+        roof_dataset,
+        train_percentage,
+        validation_percentage,
+        test_percentage,
+        batch_size,
+    )
+
+    return train_set, validation_set, test_set
+
+
 def train(
-    model : torch.nn.Module,
-    criterion : torch.nn.modules.loss._Loss,
-    dataloader_train : torch.utils.data.DataLoader,
-    dataloader_validation : torch.utils.data.DataLoader,
-    optimizer : torch.optim.Optimizer,
-    use_scheduler : bool,
-    scheduler : torch.optim.lr_scheduler,
-    num_epochs : int,
+    model: torch.nn.Module,
+    criterion: torch.nn.modules.loss._Loss,
+    dataloader_train: torch.utils.data.DataLoader,
+    dataloader_validation: torch.utils.data.DataLoader,
+    optimizer: torch.optim.Optimizer,
+    use_scheduler: bool,
+    scheduler: torch.optim.lr_scheduler,
+    num_epochs: int,
     device,
-    file_losses : str,
-    saving_frequency : int
+    file_losses: str,
+    saving_frequency: int,
 ):
     """
     Parameters
@@ -43,7 +114,7 @@ def train(
     device :
         Device on which to train (GPU or CPU cuda devices)
     file_losses : str
-        Name of the file in which to save the Train and Test losses. 
+        Name of the file in which to save the Train and Test losses.
     saving_frequency : int
         Frequency at which to save Train and Test loss on file.
 
@@ -60,15 +131,14 @@ def train(
     avg_validation_error = []
 
     for epoch in range(num_epochs):
-        
-        #Writing results to file regularly in case of interruption during training.
+
+        # Writing results to file regularly in case of interruption during training.
         if epoch + 1 % saving_frequency == 0:
             with open(file_losses, "w") as f:
                 f.write("Epoch {}".format(epoch))
                 f.write(str(avg_train_error))
                 f.write(str(avg_validation_error))
-                
-        
+
         model.train()
         train_error = []
         for batch_x, batch_y in dataloader_train:
@@ -79,39 +149,42 @@ def train(
             # Evaluate the network (forward pass)
             model.zero_grad()
             output = model(batch_x)
-            
+
             # output is Bx1xHxW and batch_y is BxHxW, squeezing first dimension of output to have same dimension
             loss = criterion(torch.squeeze(output, 1), batch_y)
             train_error.append(loss)
-            
+
             # Compute the gradient
             loss.backward()
 
             # Update the parameters of the model with a gradient step
             optimizer.step()
-        
-        #Each scheduler step is done after a hole epoch
-        #Once milestones epochs are reached the learning rates is decreased.
+
+        # Each scheduler step is done after a hole epoch
+        # Once milestones epochs are reached the learning rates is decreased.
         if use_scheduler:
             scheduler.step()
-            
-        # Test the quality on the whole training set
+
+        # Test the quality on the whole training set (overestimating the true value)
         avg_train_error.append(sum(train_error).item() / len(train_error))
-        
+
         # Validate the quality on the validation set
         model.eval()
         accuracies_validation = []
         with torch.no_grad():
             for batch_x_validation, batch_y_validation in dataloader_validation:
-                batch_x_validation, batch_y_validation = batch_x_validation.to(device, dtype=torch.float32), batch_y_validation.to(
-                    device, dtype=torch.float32
+                batch_x_validation, batch_y_validation = (
+                    batch_x_validation.to(device, dtype=torch.float32),
+                    batch_y_validation.to(device, dtype=torch.float32),
                 )
                 # Evaluate the network (forward pass)
                 prediction = model(batch_x_validation)
                 accuracies_validation.append(
                     criterion(torch.squeeze(prediction, 1), batch_y_validation)
                 )
-            avg_validation_error.append(sum(accuracies_validation).item() / len(accuracies_validation))
+            avg_validation_error.append(
+                sum(accuracies_validation).item() / len(accuracies_validation)
+            )
 
         print(
             "Epoch {} | Train Error: {:.5f}, Validation Error: {:.5f}".format(
@@ -129,27 +202,27 @@ def train(
 
 
 def main(
-    num_epochs : int = 100,
-    learning_rate : float = 1e-3,
-    use_scheduler : bool = False,
-    milestones_scheduler : list = None,
-    gamma_scheduler : float = None,
-    batch_size : int = 32,
-    train_percentage : float = 0.7,
-    validation_percentage : float = 0.15,
-    test_percentage : float = 0.15,
-    dir_data : str = "/raid/machinelearning_course/data/",
-    use_noPV : bool = False,
-    prop_noPV : float = 0.0,
-    min_rescale_images : float = 0.6,
-    file_losses : str = "losses.txt",
-    saving_frequency : int = 2,
-    weight_for_positive_class : float = 5.25,
-    save_model_parameters : bool = False,
-    load_model_parameters : bool = False,
-    dir_for_model_parameters : str = "../saved_models",
-    filename_model_parameters_to_load : str = None,
-    filename_model_parameters_to_save : str = None
+    num_epochs: int = 100,
+    learning_rate: float = 1e-3,
+    use_scheduler: bool = False,
+    milestones_scheduler: list = None,
+    gamma_scheduler: float = None,
+    batch_size: int = 32,
+    train_percentage: float = 0.7,
+    validation_percentage: float = 0.15,
+    # test_percentage: float = 0.15,
+    # dir_data: str = "/raid/machinelearning_course/data/",
+    dir_data: str = "../data/",
+    prop_noPV: float = 0.0,
+    min_rescale_images: float = 0.6,
+    file_losses: str = "losses.txt",
+    saving_frequency: int = 2,
+    weight_for_positive_class: float = 5.25,
+    save_model_parameters: bool = False,
+    load_model_parameters: bool = False,
+    dir_for_model_parameters: str = "../saved_models",
+    filename_model_parameters_to_load: str = None,
+    filename_model_parameters_to_save: str = None,
 ):
     """
     Main training function with tunable parameters.
@@ -160,7 +233,7 @@ def main(
         Number of epochs to train. The default is 100.
     learning_rate : float, optional
         Learning rate of the Optimizer. The default is 1e-3.
-    use_scheduler : bool 
+    use_scheduler : bool
         If True, use a MultiStepLR. You should the next two parameters if used.
     milestones_scheduler : list
         List of epochs at which to adapt the learning rate.
@@ -174,13 +247,9 @@ def main(
         Percentage of the Dataset to be used for Training. The default is 0.7.
     validation_percentage : float, optional
         Percentage of the Dataset to be used for Validation. The default is 0.15.
-    train_percentage : float, optional
-        Percentage of the Dataset to be used for Testing. The default is 0.15.
     dir_data : str, optional
         Directory where the folders "/images", "/labels" and "noPV/" are.
         The default is "/raid/machinelearning_course/data/".
-    use_noPV : bool, optional
-        If True adds noPV images to the Dataset. The default is False.
     prop_noPV : float, optional
         Proportion of all noPV images to add. The default is 0.0.
     min_rescale_images : float, optional
@@ -190,9 +259,9 @@ def main(
         Name of the files where to write the Train and test losses during training.
         The default is "losses.txt".
     saving_frequency : int, optional
-        Frequency (in number of epochs) at which to write the train and 
+        Frequency (in number of epochs) at which to write the train and
         test losses in the file.
-        Small frequency is used if high risk that training might 
+        Small frequency is used if high risk that training might
         be interrupted to avoid too much lost data.
         The default is 2.
     weight_for_positive_class : float, optional

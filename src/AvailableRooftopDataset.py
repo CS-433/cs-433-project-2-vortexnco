@@ -9,12 +9,18 @@ from skimage import io
 class AvailableRooftopDataset(Dataset):
     """Available Rooftop Dataset."""
 
-    def __init__(self, dir_PV, dir_noPV, dir_labels, transform=None, use_noPV=False, prop_noPV=0.0):
+    def __init__(self, dir_PV, dir_noPV, dir_labels, transform=None, prop_noPV=0.0):
         """
-        Args:
-            dir_images (string): Directory with all the images.
-            dir_labels (string): Directory with all the labels.
-            transform (callable, optional): Optional transform to be applied on a sample.
+        Inputs:
+        ========
+        dir_PV : str
+            Directory with "PV" files.
+        dir_noPV : str
+            Directory with "noPV" files.
+        dir_labels : str
+            Directory with labels of PV files.
+        transform : callable, optional
+            Transform to be applied on images.
         """
         self.dir_PV = dir_PV
         self.dir_labels = dir_labels
@@ -39,7 +45,7 @@ class AvailableRooftopDataset(Dataset):
 
             self.image_label_dict[image_full_name] = label_name_associated
 
-        if (use_noPV):
+        if (prop_noPV > 0.0):
             self.dir_noPV = dir_noPV
 
             # Get the list of noPV_image from the noPV directory (except dotfile)
