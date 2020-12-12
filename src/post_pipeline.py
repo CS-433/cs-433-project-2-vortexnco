@@ -7,10 +7,17 @@ import random
 import torch
 
 from model.unet_model import UNet
+from pipeline import load_data
 from PIL import Image
 from itertools import product
 from helpers import *
-from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import (
+    precision_recall_fscore_support,
+    precision_recall_curve,
+    f1_score,
+)
+from scipy import interpolate
+
 # precision_score, recall_score, f1_score
 from AvailableRooftopDataset import AvailableRooftopDataset
 from torch.utils.data import DataLoader
@@ -25,12 +32,7 @@ map_rgb = {0: [0, 255, 0], 1: [0, 0, 0], 2: [255, 0, 0], 3: [255, 215, 0]}
 
 
 # If color values are binary
-COMPARE_MAP_01 = {
-    (2, 0): 0,
-    (0, 0): 1,
-    (1, 1): 2,
-    (1, -1): 3,
-}
+COMPARE_MAP_01 = {(2, 0): 0, (0, 0): 1, (1, 1): 2, (1, -1): 3}
 
 # If color values are 3 bytes
 COMPARE_MAP_uint8 = {(254, 0): 0, (0, 0): 1, (255, 255): 2, (255, 1): 3}
@@ -67,7 +69,7 @@ def show_label_comparison(true_label, predicted_label):
     # Convert to RGB
     comparison_rgb = np.empty((height, width, 3), dtype=int)
     f = lambda i, j: map_rgb[comparison[i, j]]
-    
+
     for i, j in product(range(height), range(width)):
         comparison_rgb[i, j, :] = map_rgb[comparison[i, j]]
 
@@ -79,170 +81,210 @@ def show_label_comparison(true_label, predicted_label):
     plt.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.show()
 
-def post_processing_tuning(
-        batch_size : int = 32,
-        train_percentage : float = 0.7,
-        validation_percentage : float = 0.15,
-        test_percentage : float = 0.15,
-        dir_data : str ="/raid/machinelearning_course/data/",
-        use_noPV : bool = False,
-        prop_noPV : float = 0.0,
-        min_rescale_images : float = 0.6,
-        dir_for_model_parameters : str = "../saved_models",
-        filename_model_parameters_to_load : str = None,
-    ):
-    
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("GPU is {}available.".format("" if torch.cuda.is_available() else "NOT "))
 
-    # Instantiate the dataset
-    roof_dataset = AvailableRooftopDataset(
-        dir_PV = os.path.join(dir_data, "PV"), 
-        dir_noPV = os.path.join(dir_data, "noPV"), 
-        dir_labels = os.path.join(dir_data, "labels"),  
-        transform = transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.RandomResizedCrop(250, scale=(min_rescale_images, 1.0), ratio=(1.0, 1.0)),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-            ]
-        ),
-        use_noPV = use_noPV,
-        prop_noPV = prop_noPV 
-    )
-
-    # Create the DataLoaders (if used with default 0.7 / 0.15 / 0.15 will be the same as the ones used during training)
-    _, roof_dataloader_validation, roof_dataloader_test = get_DataLoaders(
-        roof_dataset,
-        train_percentage,
-        validation_percentage,
-        test_percentage,
-        batch_size
-        )
-    
-    model = UNet(n_channels=3, n_classes=1, bilinear=False)
-    model = model.to(device)
-    path_model_parameters_to_load = os.path.join(dir_for_model_parameters, filename_model_parameters_to_load)
-    model.load_state_dict(torch.load(path_model_parameters_to_load))
-    
-    model.eval()
-    
-    #torch.no_grad() in order not to compute gradients (better performance and memory)
-    with torch.no_grad():
-        for batch_x, batch_y in roof_dataloader_validation:
-            batch_x, batch_y = batch_x.to(device, dtype=torch.float32), batch_y.to(
-                device, dtype=torch.float32
-            )
-            
-            #shape is BxHxWxC usually (batch_size, 250, 250, 3)
-            image_numpy = batch_x.cpu().numpy().transpose((0,2,3,1))
-            
-            #output have not yet passed a sigmoid layer when exiting the model
-            #shape is (batch_size, 1, 250, 250)
-            output = model(batch_x)
-            
-            #shape of output_numpy is (batch_size, 250, 250)
-            output_numpy = np.squeeze(output.cpu().numpy())
-            
-            #sigmoid function to get the probabilities between 0 and 1
-            #shape of probabilities_numpy is (batch_size, 250, 250)
-            probabilities_numpy = 1/(1 + np.exp(-output_numpy)) 
-            
-            threshold_true_label = 0.5
-            threshold_prediction = 0.9
-            
-            #shape of decision_numpy is (batch_size, 250, 250) 
-            decision_numpy = np.where(probabilities_numpy>threshold_prediction, 1., 0.)
-            
-            #shape of label_numpy is (batch_size, 250, 250) 
-            label_numpy = batch_y.cpu().numpy()
-            # need to threshold because RandomResizedCrop transorm can change the pixel value
-            # need to put back all pixels to 0 or 1
-            label_numpy = np.where(label_numpy>threshold_true_label, 1., 0.)
-            
-            ##########
-            #Insert your code here for validation etc... according to thresholds
-            # you can do the same after with the test_set
-            #example below of some plots:
-            for i in range(batch_size):
-                plt.imshow(image_numpy)
-                plt.show()
-                plt.imshow(label_numpy)
-                plt.show()
-                plt.imshow(decision_numpy)
-                plt.show()
-                show_label_comparison(label_numpy, decision_numpy)
-                print("Exiting all loops to avoid printing all images")
-                break
-            break
-            
-
-def eval_model(model, val_set):
-    """Returns evaluation measures over a validation set."""
+def eval_model(model, test_set):
+    """Returns evaluation measures over a test set."""
     precision = np.zeros(len(val_set))
     recall = np.zeros(len(val_set))
     f1 = np.zeros(len(val_set))
     support = np.zeros(len(val_set))
-    for i, image, true_label in enumerate(val_set):
+    for i, image, true_label in enumerate(test_set):
         precision[i], recall[i], f1[i], support[i] = precision_recall_fscore_support(
             true_label, model(image)
         )
     return f1, precision, recall, support
-    # For different threshold probabilities
-    # Predictions passed as probabilities
-    # precision_recall_curve(y_true, probas_pred, *)
-    # roc_curve
+
+
+# def build_idx(thresholds, pred_proba):
+#     """Build the index array that will be used to
+#     compute the precision and recall for different
+#     thresholds.
+
+#     Returns:
+#     ========
+#     thresholds_idx : ndarray
+#         Array the same shape as thresholds that holds
+#         the first index of pred_probas after which
+#         pred_probas is larger than a given threshold
+#     """
+#     thresholds_idx = np.searchsorted(pred_proba, thresholds)
+    # idx = 0
+    # thresh = thresholds[0]
+    # # print(pred_proba)
+    # for i, proba in enumerate(pred_proba):
+    # #     print("I'm at index {} in pred_proba".format(i))
+    #     while proba >= thresh:
+    # #         print("idx is {}; the proba is bigger than the threshold.".format(idx))
+    #         thresholds_idx[idx] = i
+    #         idx += 1
+    #         thresh = thresholds[idx]
+    # #     print("idx is {}; the proba is smaller than the threshold so I'm advancing.".format(idx))
+    # # print(thresholds_idx)
+    # return np.r_[thresholds_idx[:-1], len(pred_proba) - 1]
+def summary_stats(array, axis = 0, type = "median"):
+    """Summary statistics of given type"""
+    if type in ["mean", "average", "avg"]:
+        mid = np.mean(array, axis=axis)
+        std = np.std(array, axis=axis)
+        lower = avg - std
+        upper = avg + std
+    elif type in ["median", "order", "quantiles"]:
+        mid = np.median(array, axis=axis)
+        lower = np.percentile(array, 25, axis=axis)
+        upper = np.percentile(array, 75, axis=axis)
+    return mid, lower, upper
+
+
+
+def plot_precision_recall(predictions, labels, n_thresholds):
+    """Plot precision-recall curves over a validation set
+    to determine the best threshold.
+
+    Inputs:
+    ========
+    predictions : array
+      model predictions
+    labels : array
+      true labels corresponding to predictions
+    n_thresholds : int
+      number of thresholds to test for
+    """
+    thresholds = np.linspace(0, 1, n_thresholds)
+    pred_probas = 1 / (1 + np.exp(-predictions))
+
+    precision = np.zeros((len(predictions), n_thresholds))
+    recall = np.zeros((len(predictions), n_thresholds))
+    f1_scores = np.zeros((len(predictions), n_thresholds))
+    # fig, (ax_prec_rec, ax_f1) = plt.subplots(nrows=2)
+
+    for i, (true, pred) in enumerate(zip(labels, pred_probas)):
+        pred = pred.flatten()
+
+        # Sort increasingly
+        sort = np.argsort(pred)
+        true = true.flatten()[sort]
+        # print("True: {}".format(true))
+        pred = pred[sort]
+        # print("Predicted: {}".format(pred))
+
+        # For each threshold, find the first index
+        # for which we start predicting 1
+        thresholds_idx = np.searchsorted(pred, thresholds)
+        # Find indices of thresholds for which all are predicted 0
+        limit_idx = np.where(thresholds_idx == len(pred))[0]
+        # Use the indices to make thresholds_idx legal as an index array
+        thresholds_idx[limit_idx] = 0
+        # print("Threshold indices: {}".format(thresholds_idx))
+        # True positives for each threshold
+        tps = np.cumsum(true[::-1])[::-1][thresholds_idx]
+        # If you never predict 1 you have no true positives
+        tps[limit_idx] = 0
+        # print("True positives: {}".format(tps))
+        predicted_true = len(true) - thresholds_idx
+        actually_true = tps[0]
+
+        prec = tps / predicted_true
+        # If you never predict 1 your precision is bad
+        # But I need the precision-recall curve to make sense
+        # and the F1-score to be defined
+        prec[limit_idx] = 1
+        precision[i] = prec
+        with np.errstate(divide='ignore', invalid='ignore'):
+            rec = tps / actually_true
+        rec = np.nan_to_num(rec, 0)
+        recall[i] = rec
+        with np.errstate(divide='ignore', invalid='ignore'):
+            f1 = 2 * (prec * rec) / (prec + rec)
+        f1_scores[i] = np.nan_to_num(f1, 0)
+        # print("Precision: {}".format(prec[-4:]))
+        # print("Recall: {}".format(rec[-4:]))
+        # print("F1: {}".format(f1_scores[i][-4:]))
+
+        # ax_prec_rec.plot(rec, prec)
+
+    prec_mid, prec_lower, prec_upper = summary_stats(precision, type='median')
+    rec_mid, *_ = summary_stats(recall, type='median')
+    f1_mid, f1_lower, f1_upper = summary_stats(f1_scores, type='median')
+
+    plt.figure(1)
+    ax_f1 = plt.axes()
+    ax_f1.fill_between(thresholds, f1_lower, f1_upper, alpha=0.6)
+    ax_f1.plot(thresholds, f1_mid)
+
+    plt.figure(2)
+    ax_prec_rec = plt.axes()
+    ax_prec_rec.fill_between(rec_mid, prec_lower, prec_upper, alpha=0.6)
+    ax_prec_rec.plot(rec_mid, prec_mid)
+    # Should I use the lower and upper rec??
+    # What's the significance of this statistically?
+    # ax_prec_rec.fill_between(rec_lower, prec_lower, prec_mid, alpha=0.6)
+    # ax_prec_rec.fill_between(rec_upper, prec_mid, prec_upper, alpha=0.6)
+    # ax_prec_rec.plot(rec_lower, prec_lower)
+    # ax_prec_rec.plot(rec_upper, prec_upper)
+
+    plt.show()
+
+
+# x = np.linspace(0, 30, 30)
+# y = np.sin(x/6*np.pi)
+# error = np.random.normal(0.1, 0.02, size=y.shape)
+# y += np.random.normal(0, 0.1, size=y.shape)
+
+# plt.plot(x, y, 'k-')
+# plt.fill_between(x, y-error, y+error)
+# plt.show()
+
+# roc_curve
 
 
 if __name__ == "__main__":
-    label_files = random.sample(os.listdir(labelFolder), 2)
-    image_files = [get_image_file(f) for f in label_files]
-    label_files = [os.path.join(labelFolder, f) for f in label_files]
-    image_files = [os.path.join(imageFolder, f) for f in image_files]
-    labels = [
-        np.array(Image.open(label_file).convert("L")) for label_file in label_files
-    ]
-
+    # If you don't yet have the model predictions
     # Import model for testing
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = UNet(n_channels=3, n_classes=1, bilinear=False)
-    model = model.to(device)
-    model.load_state_dict(torch.load("../stuff/Adam_e_3_reschedulat100toe4_epochs_200",map_location=torch.device('cpu')))
-    model.eval()
-    with torch.no_grad():
-        images, labels = next(iter(roof_dataloader_train))
-        images = images.to(device, dtype=torch.float32)
-        predictions = model(images)
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # model = UNet(n_channels=3, n_classes=1, bilinear=False)
+    # model = model.to(device)
+    # model.load_state_dict(
+    #     torch.load(
+    #         "../stuff/Adam_e_3_reschedulat100toe4_epochs_200",
+    #         map_location=torch.device("cpu"),
+    #     )
+    # )
 
-    # I'd like to do that on the full dataset
-    image_numpy = images[i].cpu().numpy().transpose((1, 2, 0))
-    # plt.imshow(image_numpy)
-    # plt.show()
+    # _, validation_set, _ = load_data(
+    #     dir_data="../data/",
+    #     prop_noPV=0,
+    #     min_rescale_images=0.6,
+    #     batch_size=100,
+    #     train_percentage=0.7,
+    #     validation_percentage=0.15,
+    # )
 
-    label_numpy = labels[i].cpu().numpy()
-    # plt.imshow(label_numpy)
-    # plt.show()
+    # model.eval()
+    # with torch.no_grad():
+    #     images, labels = next(iter(validation_set))
+    #     images = images.to(device, dtype=torch.float32)
+    #     predictions = model(images).cpu().numpy()
+    #     predictions = np.squeeze(predictions, axis=1)
+    #     labels = labels.cpu().numpy()
+    #     np.savez_compressed("../stuff/validation_set", predictions=predictions, labels=labels)
 
-    # Transforming output of model to probabilities
-    predicted_numpy = np.squeeze(predictions.cpu().numpy()[i])
-    predicted_numpy = 1 / (1 + np.exp(-predicted_numpy))
-    # plt.imshow(predicted_numpy)
-    # plt.show()
+    arrays = np.load("../stuff/validation_set.npz")
+    predictions = arrays["predictions"]
+    labels = arrays["labels"]
+    threshold_true = 0.5
+    labels = np.where(labels > threshold_true, 1, 0)
 
-    # Thresholding prediction probabilities to make a decision
-    threshold_prediction = 0.9
-    pred = np.where(label_numpy > threshold_prediction, 1.0, 0.0)
-    # Label needs to be thresholded because of transforms
-    threshold_true_label = 0.5
-    true = np.where(label_numpy > threshold_true_label, 1.0, 0.0)
-    # plt.imshow(np.where(predicted_numpy>threshold_prediction, 1., 0.))
-    # plt.show()
+    # true = np.array([0, 0, 1, 1])
+    # p1 = np.round(np.array([0.1, 0.3, 0.7, 0.9]), decimals=1)
+    # t1 = np.linspace(0, 1, 11)
+    # plot_precision_recall(np.array([p1]), np.array([true]), 11)
 
-    show_label_comparison(true, pred)
-    # plt.imshow(labels[0])
-    # plt.show()
-    # plt.imshow(labels[1])
-    # plt.show()
-    # show_label_comparison(labels[0], labels[1])
-    post_processing_tuning(filename_model_parameters_to_load = "some_cool_model.pt")
+    # print(np.cumsum(true)[build_idx(t1, p1)])
+    plot_precision_recall(predictions, labels, 100)
+    # prec, rec, thresh = precision_recall_curve(
+    #     labels[0].flatten(), 1 / (1 + np.exp(predictions[0].flatten()))
+    # )
+    # print(prec)
+    # print(rec)
+    # print(thresh)
+    # threshold_test(predictions, labels)
