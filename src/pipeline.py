@@ -301,69 +301,70 @@ def main(
     print("GPU is {}available.".format("" if torch.cuda.is_available() else "NOT "))
 
     # Instantiate the dataset
-    roof_dataset = AvailableRooftopDataset(
-        dir_PV = os.path.join(dir_data, "PV"), 
-        dir_noPV = os.path.join(dir_data, "noPV"), 
-        dir_labels = os.path.join(dir_data, "labels"),  
-        transform = transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.RandomResizedCrop(250, scale=(min_rescale_images, 1.0), ratio=(1.0, 1.0)),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-            ]
-        ),
-        use_noPV = use_noPV,
-        prop_noPV = prop_noPV 
-    )
-
-    roof_dataloader_train, roof_dataloader_validation, _ = get_DataLoaders(
-        roof_dataset,
+    roof_dataloader_train, roof_dataloader_validation, roof_dataloader_test = load_data(
+        dir_data,
+        # use_noPV,
+        prop_noPV,
+        min_rescale_images,
+        batch_size,
         train_percentage,
         validation_percentage,
-        test_percentage,
-        batch_size
-        )
+    )
 
-    #Creat Binary cross entropy loss with a weight associated with the positive pixels.
-    #A weight for the positive class >1 increases recall.
-    #A weight for the positive class <1 increases precision.
+    # Create Binary cross entropy loss weighted according to positive pixels.
+    # pos_weight > 1 increases recall.
+    # pos_weight < 1 increases precision.
     pos_weight = torch.tensor([weight_for_positive_class]).to(device)
     criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
 
+    # If we're not starting from scratch
     if load_model_parameters:
-        path_model_parameters_to_load = os.path.join(dir_for_model_parameters, filename_model_parameters_to_load)
+        path_model_parameters_to_load = os.path.join(
+            dir_for_model_parameters, filename_model_parameters_to_load
+        )
         model.load_state_dict(torch.load(path_model_parameters_to_load))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = None
-    if use_scheduler:
-        scheduler = MultiStepLR(optimizer, milestones=milestones_scheduler, gamma=gamma_scheduler)
-    
-    avg_train_error, avg_validation_error = train(
-        model,
-        criterion,
-        roof_dataloader_train,
-        roof_dataloader_validation,
-        optimizer,
-        use_scheduler,
-        scheduler,
-        num_epochs,
-        device,
-        file_losses,
-        saving_frequency        
-    )
+    # If we're training or retraining a model
+    if (num_epochs > 0):
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        scheduler = None
+        if use_scheduler:
+            scheduler = MultiStepLR(
+                optimizer, milestones=milestones_scheduler, gamma=gamma_scheduler
+            )
 
-    if save_model_parameters:
-        path_model_parameters_to_save = os.path.join(dir_for_model_parameters, filename_model_parameters_to_save)
-        torch.save(model.state_dict(), path_model_parameters_to_save)
+        avg_train_error, avg_validation_error = train(
+            model,
+            criterion,
+            roof_dataloader_train,
+            roof_dataloader_validation,
+            optimizer,
+            use_scheduler,
+            scheduler,
+            num_epochs,
+            device,
+            file_losses,
+            saving_frequency,
+        )
+
+        if save_model_parameters:
+            path_model_parameters_to_save = os.path.join(
+                dir_for_model_parameters, filename_model_parameters_to_save
+            )
+            torch.save(model.state_dict(), path_model_parameters_to_save)
+
+    # Now find the best threshold
+    # precision_recall_curve(y_true, probas_pred, *)
+    # roc_curve
+
 
     print(avg_train_error, avg_validation_error)
-    
-    return model, avg_train_error, avg_validation_error    
+
+    return model, avg_train_error, avg_validation_error
+
 
 if __name__ == "__main__":
     main()
