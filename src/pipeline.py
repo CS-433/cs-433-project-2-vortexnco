@@ -314,9 +314,8 @@ def main(
     # Create Binary cross entropy loss weighted according to positive pixels.
     # pos_weight > 1 increases recall.
     # pos_weight < 1 increases precision.
-    #pos_weight = torch.tensor([weight_for_positive_class]).to(device)
-    #criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-    criterion = torch.nn.L1Loss()
+    pos_weight = torch.tensor([weight_for_positive_class]).to(device)
+    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
