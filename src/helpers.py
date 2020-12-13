@@ -1,8 +1,10 @@
+import numpy as np
 import os
 import re
 import torch
+
 from AvailableRooftopDataset import AvailableRooftopDataset
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 
 
 def get_label_file(filename_image):
@@ -27,6 +29,47 @@ def has_label(filename_image, label_folder):
     return path_label.is_file()
 
 
+def summary_stats(array, axis=0, type="median"):
+    """Summary statistics of array of given type.
+
+    Inputs:
+    =========
+    array : ndarray
+        Array to summarize.
+    axis : int, optional
+        Axis along which to summarize.
+    type : str
+        Type of summary to produce.
+        For mean and standard deviation, give one of ["mean", "average", "avg"].
+        For order statistics, give one of ["median", "order", "quantiles"].
+
+    Raises:
+    =========
+    NotImplementedError
+        When the type is not recognized.
+
+    Returns:
+    =========
+    summary : ndarray
+        Contains summary statistics of array for each column:
+        First row is mid-point (e.g. mean or median)
+        Second row is lower bound (e.g. mean - std or first quartile)
+        Third row is upper bound (e.g. mean + std or third quartile)
+    """
+    if type in ["mean", "average", "avg"]:
+        mid = np.mean(array, axis=axis)
+        std = np.std(array, axis=axis)
+        lower = avg - std
+        upper = avg + std
+    elif type in ["median", "order", "quantiles"]:
+        mid = np.median(array, axis=axis)
+        lower = np.percentile(array, 25, axis=axis)
+        upper = np.percentile(array, 75, axis=axis)
+    else:
+        raise NotImplementedError
+    return np.stack((mid, lower, upper))
+
+
 def get_DataLoaders(
     roof_dataset: AvailableRooftopDataset,
     train_percentage: float,
@@ -36,10 +79,8 @@ def get_DataLoaders(
     seed: int = 42,
 ):
     """
-
-
-    Parameters
-    ----------
+    Inputs:
+    ========
     roof_dataset : AvailableRooftopDataset
         Dataset to be used.
     train_percentage : float
@@ -54,20 +95,19 @@ def get_DataLoaders(
         Seed to use durig split. Should not be changed for consistent results.
         The default is 42.
 
-    Raises
-    ------
+    Raises:
+    ========
     ValueError
-        DESCRIPTION.
+        If the percentages do not sum to 1.
 
-    Returns
-    -------
+    Returns:
+    ========
     roof_dataloader_train : torch.utils.data.DataLoader
         Training DataLoader.
     roof_dataloader_validation : torch.utils.data.DataLoader
         Validation DataLoader.
     roof_dataloader_test : torch.utils.data.DataLoader
         Test DataLoader.
-
     """
 
     sum_percentages = train_percentage + validation_percentage + test_percentage
@@ -84,11 +124,7 @@ def get_DataLoaders(
         dataset_length - train_dataset_length - validation_dataset_length
     )
 
-    (
-        roof_dataset_train,
-        roof_dataset_validation,
-        roof_dataset_test,
-    ) = torch.utils.data.random_split(
+    roof_dataset_train, roof_dataset_validation, roof_dataset_test, = random_split(
         roof_dataset,
         [train_dataset_length, validation_dataset_length, test_dataset_length],
         generator=torch.Generator().manual_seed(seed),
@@ -98,11 +134,9 @@ def get_DataLoaders(
     roof_dataloader_train = DataLoader(
         roof_dataset_train, batch_size=batch_size, shuffle=True, num_workers=0
     )
-
     roof_dataloader_validation = DataLoader(
         roof_dataset_validation, batch_size=batch_size, shuffle=True, num_workers=0
     )
-
     roof_dataloader_test = DataLoader(
         roof_dataset_test, batch_size=batch_size, shuffle=True, num_workers=0
     )
