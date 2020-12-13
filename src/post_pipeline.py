@@ -4,32 +4,20 @@ import matplotlib.patches as mpatches
 import numpy as np
 import os
 import random
-import torch
 
-from model.unet_model import UNet
-from pipeline import load_data
 from PIL import Image
 from itertools import product
-from helpers import *
-from sklearn.metrics import (
-    precision_recall_fscore_support,
-    precision_recall_curve,
-    f1_score,
-)
-from scipy import interpolate
-
-# precision_score, recall_score, f1_score
-from AvailableRooftopDataset import AvailableRooftopDataset
+from sklearn.metrics import precision_recall_fscore_support
 from torch.utils.data import DataLoader
 
+from AvailableRooftopDataset import AvailableRooftopDataset
+from model.unet_model import UNet
+from pipeline import load_data
+from helpers import *
 
-dataFolder = "../data"
-imageFolder = os.path.join(dataFolder, "PV")
-labelFolder = os.path.join(dataFolder, "labels")
-# test_filename = "DOP25_LV03_1301_11_2015_1_15_497500.0_119062.5.png"
 
+## VISUALISATION
 map_rgb = {0: [0, 255, 0], 1: [0, 0, 0], 2: [255, 0, 0], 3: [255, 215, 0]}
-
 
 # If color values are binary
 COMPARE_MAP_01 = {(2, 0): 0, (0, 0): 1, (1, 1): 2, (1, -1): 3}
@@ -39,13 +27,13 @@ COMPARE_MAP_uint8 = {(254, 0): 0, (0, 0): 1, (255, 255): 2, (255, 1): 3}
 
 
 def compare_labels(true_label, predicted_label):
-    """Outputs an array annotated as TP, FP, TN or FN as ints"""
+    """Outputs an array annotated as TP, FP, TN or FN as ints,
+    according to the chosen COMPARE_MAP"""
     height, width = true_label.shape
     comp_array = np.array([predicted_label + true_label, predicted_label - true_label])
     result = np.empty((height, width), dtype=int)
     for i, j in product(range(height), range(height)):
         result[i, j] = COMPARE_MAP_uint8[tuple(comp_array[:, i, j])]
-
     return result
 
 
@@ -62,7 +50,7 @@ def show_label_comparison(true_label, predicted_label):
 
     Returns
     -------
-    None.
+    None
     """
     comparison = compare_labels(true_label, predicted_label)
     height, width = comparison.shape
@@ -82,72 +70,62 @@ def show_label_comparison(true_label, predicted_label):
     plt.show()
 
 
-def eval_model(model, test_set):
-    """Returns evaluation measures over a test set."""
-    precision = np.zeros(len(val_set))
-    recall = np.zeros(len(val_set))
-    f1 = np.zeros(len(val_set))
-    support = np.zeros(len(val_set))
-    for i, image, true_label in enumerate(test_set):
+## TESTING (once threshold is chosen)
+def test(test_predictions, test_labels, threshold):
+    """Returns evaluation measures over a test set.
+
+    Inputs:
+    ========
+    test_predictions : ndarray
+        Array of ints containing the predictions for each image in the test set.
+        Predictions should be raw (not probabilities).
+    test_labels : ndarray
+        Array of ints containing the true labels for each image in the test set.
+    threshold : float
+        Threshold over which predictions should be decided as 1.
+
+    Returns:
+    ========
+    f1, precision, recall, support : ndarray
+        Evaluation measures for each prediction
+    """
+    n = len(test_predictions)
+    precision = np.zeros(n)
+    recall = np.zeros(n)
+    f1 = np.zeros(n)
+    support = np.zeros(n)
+
+    pred_probas = 1 / (1 + np.exp(-test_predictions))
+    test_predictions = np.where(pred_probas > threshold, 1, 0)
+    for i, true, pred in enumerate(zip(test_labels, test_predictions)):
         precision[i], recall[i], f1[i], support[i] = precision_recall_fscore_support(
-            true_label, model(image)
+            true.flatten(), pred.flatten()
         )
     return f1, precision, recall, support
 
 
-# def build_idx(thresholds, pred_proba):
-#     """Build the index array that will be used to
-#     compute the precision and recall for different
-#     thresholds.
-
-#     Returns:
-#     ========
-#     thresholds_idx : ndarray
-#         Array the same shape as thresholds that holds
-#         the first index of pred_probas after which
-#         pred_probas is larger than a given threshold
-#     """
-#     thresholds_idx = np.searchsorted(pred_proba, thresholds)
-    # idx = 0
-    # thresh = thresholds[0]
-    # # print(pred_proba)
-    # for i, proba in enumerate(pred_proba):
-    # #     print("I'm at index {} in pred_proba".format(i))
-    #     while proba >= thresh:
-    # #         print("idx is {}; the proba is bigger than the threshold.".format(idx))
-    #         thresholds_idx[idx] = i
-    #         idx += 1
-    #         thresh = thresholds[idx]
-    # #     print("idx is {}; the proba is smaller than the threshold so I'm advancing.".format(idx))
-    # # print(thresholds_idx)
-    # return np.r_[thresholds_idx[:-1], len(pred_proba) - 1]
-def summary_stats(array, axis = 0, type = "median"):
-    """Summary statistics of given type"""
-    if type in ["mean", "average", "avg"]:
-        mid = np.mean(array, axis=axis)
-        std = np.std(array, axis=axis)
-        lower = avg - std
-        upper = avg + std
-    elif type in ["median", "order", "quantiles"]:
-        mid = np.median(array, axis=axis)
-        lower = np.percentile(array, 25, axis=axis)
-        upper = np.percentile(array, 75, axis=axis)
-    return mid, lower, upper
-
-
-
-def plot_precision_recall(predictions, labels, n_thresholds):
-    """Plot precision-recall curves over a validation set
-    to determine the best threshold.
+## VALIDATION
+def validation(predictions, labels, n_thresholds, plot=True):
+    """Determine the best threshold given validation set and
+    visualise results (precision-recall curve and F1-score against thresholds)
 
     Inputs:
     ========
-    predictions : array
-      model predictions
-    labels : array
-      true labels corresponding to predictions
+    predictions : ndarray
+        model predictions on validation set
+    labels : ndarray
+        true labels corresponding to predictions on validation set
     n_thresholds : int
-      number of thresholds to test for
+        number of thresholds to test for
+    plot : bool
+        whether to plot results or not
+
+    Returns:
+    ========
+    precision, recall, f1_scores : ndarray
+        Evaluation measures for each threshold, for each image
+    best_thresh : float
+        The threshold which maximizes some value
     """
     thresholds = np.linspace(0, 1, n_thresholds)
     pred_probas = 1 / (1 + np.exp(-predictions))
@@ -155,7 +133,6 @@ def plot_precision_recall(predictions, labels, n_thresholds):
     precision = np.zeros((len(predictions), n_thresholds))
     recall = np.zeros((len(predictions), n_thresholds))
     f1_scores = np.zeros((len(predictions), n_thresholds))
-    # fig, (ax_prec_rec, ax_f1) = plt.subplots(nrows=2)
 
     for i, (true, pred) in enumerate(zip(labels, pred_probas)):
         pred = pred.flatten()
@@ -163,9 +140,7 @@ def plot_precision_recall(predictions, labels, n_thresholds):
         # Sort increasingly
         sort = np.argsort(pred)
         true = true.flatten()[sort]
-        # print("True: {}".format(true))
         pred = pred[sort]
-        # print("Predicted: {}".format(pred))
 
         # For each threshold, find the first index
         # for which we start predicting 1
