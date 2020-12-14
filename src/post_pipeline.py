@@ -328,7 +328,7 @@ def main(
         print("=" * 50)
         print("Generating data")
         _, validation_set, test_set = load_data(
-            dir_data="/raid/machinelearning_course/data",
+            dir_data=dir_data,
             prop_noPV=prop_noPV,
             min_rescale_images=0.6,
             batch_size=100,
@@ -396,7 +396,8 @@ def main(
 
 
 if __name__ == "__main__":
-    dir_models = "/home/auguste/FinalModels/"
+    dir_models = "/home/auguste/modelsNewData/"
+    dir_data = "/raid/machinelearning_course/data"
 
     noPV_percentages = dict(zip(os.listdir(dir_models), [0 for _ in range(1000)]))
     noPV_percentages[
@@ -412,7 +413,7 @@ if __name__ == "__main__":
     main(
         model_name=model,
         prop_noPV=noPV_percentages[model],
-        from_file=True,
+        from_file=False,
         validation=True,
         test=True,
         verbose=True,
