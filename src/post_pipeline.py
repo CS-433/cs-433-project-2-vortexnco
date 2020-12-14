@@ -305,27 +305,20 @@ def main(
     model_dir = os.path.join(dir_models, model_name)
     params_file = os.path.join(model_dir, model_name)
     data_file = os.path.join(model_dir, "data.npz")
+    new_section = "=" * 50
 
-    # Import model parameters
     print("Importing model parameters from {}".format(params_file))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
     model.load_state_dict(torch.load(params_file, map_location=torch.device("cpu")))
 
+    print(new_section)
     if from_file:
-        print("=" * 50)
         print("Loading data")
-        # arrays = np.load("../stuff/validation_set.npz")
         arrays = np.load(data_file)
-        # val_predictions = arrays["val_predictions"]
-        # val_labels = arrays["val_labels"]
-        # test_predictions = arrays["test_predictions"]
-        # test_labels = arrays["test_labels"]
         val_predictions, val_labels, test_predictions, test_labels = arrays.values()
     else:
-        # Generate validation and test sets
-        print("=" * 50)
         print("Generating data")
         _, validation_set, test_set = load_data(
             dir_data="/raid/machinelearning_course/data",
@@ -362,7 +355,7 @@ def main(
     test_labels = np.where(test_labels > threshold_true, 1, 0)
 
     if validation:
-        print("=" * 50)
+        print(new_section)
         print("Validation starting")
         _, _, _, best_threshold = find_best_threshold(
             val_predictions, val_labels, n_thresholds=100, plot=plot
@@ -370,7 +363,7 @@ def main(
         print(f"Found best threshold to be {best_threshold:.4f}")
 
     if test:
-        print("=" * 50)
+        print(new_section)
         print("Testing starting")
         f1, precision, recall = test_model(
             test_predictions, test_labels, best_threshold
@@ -383,7 +376,7 @@ def main(
         print(f"\tBest threshold = {best_threshold}")
         for i, measure in enumerate(["F1-score", "Precision", "Recall"]):
             print("\t{}: {}".format(measure, results[:, i]))
-        print("=" * 50)
+        print(new_section)
         print("Saving results to {}".format(results_file))
         np.savetxt(
             results_file,
@@ -408,7 +401,7 @@ if __name__ == "__main__":
     # print(noPV_percentages)
 
     # for model in noPV_percentages.keys():
-    #model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
+    model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
     main(
         model_name=model,
         prop_noPV=noPV_percentages[model],
