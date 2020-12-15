@@ -337,6 +337,8 @@ def main(
     # Instantiate the dataset
     roof_dataloader_train, roof_dataloader_validation, roof_dataloader_test = load_data(
         dir_data_training,
+        dir_data_validation,
+        dir_data_test,
         prop_noPV_training,
         min_rescale_images,
         batch_size
