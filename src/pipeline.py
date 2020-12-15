@@ -81,7 +81,7 @@ def load_data(
         dir_noPV=os.path.join(dir_data_validation, "noPV"),
         dir_labels=os.path.join(dir_data_validation, "labels"),
         transform=transform_id,
-        prop_noPV=1.0,
+        prop_noPV=-1,
     )
 
     # Instantiate the test dataset
@@ -90,7 +90,7 @@ def load_data(
         dir_noPV=os.path.join(dir_data_test, "noPV"),
         dir_labels=os.path.join(dir_data_test, "labels"),
         transform=transform_id,
-        prop_noPV=1.0,
+        prop_noPV=-1,
     )
 
     ## Instantiate DataLoader objects for each dataset (train/validation/test)
