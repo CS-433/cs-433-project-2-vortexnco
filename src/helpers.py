@@ -67,7 +67,7 @@ def summary_stats(array, axis=0, type="median"):
         upper = np.percentile(array, 75, axis=axis)
     else:
         raise NotImplementedError
-    return np.stack((mid, lower, upper))
+    return np.stack((lower, mid, upper), axis=axis)
 
 
 def get_DataLoaders(
