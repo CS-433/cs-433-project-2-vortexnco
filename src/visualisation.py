@@ -45,7 +45,7 @@ def show_full_comparisonTest(model, threshold_prediction = 0.9,
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    for images, labels in test_dl
+    for images, labels in test_dl:
         model.eval()
         with torch.no_grad():
             images = images.to(device, dtype=torch.float32)
