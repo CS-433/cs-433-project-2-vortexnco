@@ -29,14 +29,17 @@ def compare_labels(true_label, predicted_label):
     return result
 
 
-def show_full_comparison(model, threshold_prediction = 0.9):
+def show_full_comparison(model, threshold_prediction = 0.9,
+                        dir_data_training = "../data/train",
+                        dir_data_validation = "../data/validation",
+                        dir_data_test= "../data/test"):
     
     _, val, te =  load_data(
-        dir_data_training = "../data/train",
-        dir_data_validation = "../data/validation",
-        dir_data_test= "../data/test",
-        prop_noPV_training = 0.0,
-        min_rescale_images = 0.6,
+        dir_data_training,
+        dir_data_validation,
+        dir_data_test,
+        prop_noPV_training = 0.0, #dummy value since only used in Train
+        min_rescale_images = 0.6, #dummy value since only used in Train
         batch_size = 1
     )
     
@@ -48,29 +51,31 @@ def show_full_comparison(model, threshold_prediction = 0.9):
         images = images.to(device, dtype=torch.float32)
         predictions = model(images)
     
+    #Plotting first image of batch
     i=0
     image_numpy = images[i].cpu().numpy().transpose((1,2,0))
-    plt.imshow(image_numpy)
-    plt.show()
+    
+    fig, axs = plt.subplots(2,2, figsize = (8,8))
+    axs[0,0].imshow(image_numpy)
+    axs[0,0].set_title("Image")
     
     label_numpy = labels[i].cpu().numpy()
-    plt.imshow(label_numpy)
-    plt.show()
+    axs[0,1].imshow(label_numpy)
+    axs[0,1].set_title("True label")
     
     #transforming output of model to probabilities
     predicted_numpy = np.squeeze(predictions.cpu().numpy()[i])
     predicted_numpy = 1/(1 + np.exp(-predicted_numpy)) 
-    plt.imshow(predicted_numpy)
-    plt.show()
     
     threshold_true_label = 0.5
-    
     #Thresholding prediction probabilities to make a decision
-    plt.imshow(np.where(predicted_numpy>threshold_prediction, 1., 0.))
-    plt.show()
+    axs[1,0].imshow(np.where(predicted_numpy>threshold_prediction, 1., 0.))
+    axs[1,0].set_title("Prediction")
     
     #Comparing label (label needs to be thresholded because of transforms) to decision 
-    show_label_comparison(np.where(label_numpy>threshold_true_label, 1, 0), np.where(predicted_numpy>threshold_prediction, 1, 0))
+    show_label_comparison(np.where(label_numpy>threshold_true_label, 1, 0), np.where(predicted_numpy>threshold_prediction, 1, 0), axs[1,1])
+    fig.tight_layout()
+    fig.show()
 
 def show_label_comparison(true_label, predicted_label, ax):
     """
