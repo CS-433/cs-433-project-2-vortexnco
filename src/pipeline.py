@@ -370,11 +370,6 @@ def main(
             )
             torch.save(model.state_dict(), path_model_parameters_to_save)
 
-    # Now find the best threshold
-    # precision_recall_curve(y_true, probas_pred, *)
-    # roc_curve
-
-
     print(avg_train_error, avg_validation_error)
 
     return model, avg_train_error, avg_validation_error
