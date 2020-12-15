@@ -23,7 +23,7 @@ def load_data(
     Parameters
     ----------
     dir_data : str
-        Directory where the folders "/images", "/labels" and "noPV/" are.
+        Directory where the folders "images/", "labels/" and "noPV/" are.
     prop_noPV : float
         Proportion of all noPV images to add.
     min_rescale_images : float
@@ -31,9 +31,9 @@ def load_data(
     batch_size : int
         Number of samples per batch in the DataLoaders.
     train_percentage : float
-        Percentage of the Dataset to be used for Training.
+        Percentage of the dataset to be used for training.
     validation_percentage : float
-        Percentage of the Dataset to be used for Validation.
+        Percentage of the dataset to be used for validation.
 
     Returns
     -------
