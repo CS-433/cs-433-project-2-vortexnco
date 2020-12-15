@@ -2,7 +2,6 @@ import torch
 
 from AvailableRooftopDataset import AvailableRooftopDataset
 from torch.utils.data import DataLoader
-from helpers import get_DataLoaders
 from torch.optim.lr_scheduler import MultiStepLR
 from model.unet_model import UNet
 from torchvision import transforms
@@ -10,43 +9,44 @@ import os
 
 
 def load_data(
-    dir_data: str,
-    prop_noPV: float,
+    dir_data_training: str,
+    dir_data_validation: str,
+    dir_data_test: str,
+    prop_noPV_training: float,
     min_rescale_images: float,
-    batch_size: int,
-    train_percentage: float,
-    validation_percentage: float,
+    batch_size: int
 ):
     """
     Create the DataLoader objects that will generate the training, validation and test sets.
 
     Parameters
     ----------
-    dir_data : str
-        Directory where the folders "images/", "labels/" and "noPV/" are.
-    prop_noPV : float
-        Proportion of all noPV images to add.
+    dir_data_training : str
+        Directory where the folders "/images", "/labels" and "noPV/" are for the training set.
+    dir_data_validation : str
+        Directory where the folders "/images", "/labels" and "noPV/" are for the validation set.
+    dir_data_test : str
+        Directory where the folders "/images", "/labels" and "noPV/" are for the test set.
+    prop_noPV_training : float
+        Proportion of noPV images to add for the training of the model.
     min_rescale_images : float
         Minimum proportion of the image to keep for the RandomResizedCrop transform.
     batch_size : int
         Number of samples per batch in the DataLoaders.
-    train_percentage : float
-        Percentage of the dataset to be used for training.
-    validation_percentage : float
-        Percentage of the dataset to be used for validation.
 
     Returns
     -------
-    train_set : torch.utils.data.DataLoader
+    train_dl : torch.utils.data.DataLoader
         Training DataLoader.
-    validation_set : torch.utils.data.DataLoader
+    validation_dl : torch.utils.data.DataLoader
         Validation DataLoader.
-    test_set : torch.utils.data.DataLoader
+    test_dl : torch.utils.data.DataLoader
         Test DataLoader.
     """
 
-    # Choose which transforms to apply
-    transform = transforms.Compose(
+    ## Define transforms
+    # Transforms to augment the data (for training set)
+    transform_aug = transforms.Compose(
         [
             transforms.ToPILImage(),
             transforms.RandomResizedCrop(
@@ -57,26 +57,56 @@ def load_data(
         ]
     )
 
-    # Instantiate Dataset object
-    roof_dataset = AvailableRooftopDataset(
-        dir_PV=os.path.join(dir_data, "PV"),
-        dir_noPV=os.path.join(dir_data, "noPV"),
-        dir_labels=os.path.join(dir_data, "labels"),
-        transform=transform,
-        prop_noPV=prop_noPV,
+    # Identity transforms (for validation and test set)
+    transform_id = transforms.Compose(
+        [
+            transforms.ToPILImage(),
+            transforms.ToTensor(),
+        ]
     )
 
-    # Instantiate DataLoader objects according to the splits
-    test_percentage = 1 - train_percentage - validation_percentage
-    train_set, validation_set, test_set = get_DataLoaders(
-        roof_dataset,
-        train_percentage,
-        validation_percentage,
-        test_percentage,
-        batch_size,
+    ## Define datasets
+    # Instantiate the training dataset
+    roof_train_dataset = AvailableRooftopDataset(
+        dir_PV=os.path.join(dir_data_training, "PV"),
+        dir_noPV=os.path.join(dir_data_training, "noPV"),
+        dir_labels=os.path.join(dir_data_training, "labels"),
+        transform=transform_aug,
+        prop_noPV=prop_noPV_training,
     )
 
-    return train_set, validation_set, test_set
+    # Instantiate the validation dataset
+    roof_validation_dataset = AvailableRooftopDataset(
+        dir_PV=os.path.join(dir_data_validation, "PV"),
+        dir_noPV=os.path.join(dir_data_validation, "noPV"),
+        dir_labels=os.path.join(dir_data_validation, "labels"),
+        transform=transform_id,
+        prop_noPV=1.0,
+    )
+
+    # Instantiate the test dataset
+    roof_test_dataset = AvailableRooftopDataset(
+        dir_PV=os.path.join(dir_data_test, "PV"),
+        dir_noPV=os.path.join(dir_data_test, "noPV"),
+        dir_labels=os.path.join(dir_data_test, "labels"),
+        transform=transform_id,
+        prop_noPV=1.0,
+    )
+
+    ## Instantiate DataLoader objects for each dataset (train/validation/test)
+    roof_train_dl = DataLoader(
+        roof_train_dataset, batch_size=batch_size, shuffle=True, num_workers=0
+    )
+
+    roof_validation_dl = DataLoader(
+        roof_validation_dataset, batch_size=batch_size, shuffle=True, num_workers=0
+    )
+
+    roof_test_dl = DataLoader(
+        roof_test_dataset, batch_size=batch_size, shuffle=True, num_workers=0
+    )
+
+    return roof_train_dl, roof_validation_dl, roof_test_dl
 
 
 def train(
@@ -204,16 +234,17 @@ def train(
 def main(
     num_epochs: int = 100,
     learning_rate: float = 1e-3,
+    optimizer_type : str = "ADAM",
+    loss : str = "BCE",
     use_scheduler: bool = False,
     milestones_scheduler: list = None,
     gamma_scheduler: float = None,
     batch_size: int = 32,
-    train_percentage: float = 0.7,
-    validation_percentage: float = 0.15,
-    optimizer_type : str = "ADAM",
-    loss : str = "BCE",
-    dir_data: str = "../data/",
-    prop_noPV: float = 0.0,
+    # dir_data: str = "/raid/machinelearning_course/data/",
+    dir_data_training: str = "../data/train",
+    dir_data_validation: str = "../data/validation",
+    dir_data_test: str = "../data/test",
+    prop_noPV_training: float = 0.0,
     min_rescale_images: float = 0.6,
     file_losses: str = "losses.txt",
     saving_frequency: int = 2,
@@ -233,6 +264,10 @@ def main(
         Number of epochs to train. The default is 100.
     learning_rate : float, optional
         Learning rate of the Optimizer. The default is 1e-3.
+    optimizer_type : str, optional
+        Can be "ADAM" or "SGD". The default is "ADAM".
+    loss : str, optional
+        Cane be "BCE" of "L1". The default is "BCE".
     use_scheduler : bool
         If True, use a MultiStepLR. You should the next two parameters if used.
     milestones_scheduler : list
@@ -243,18 +278,13 @@ def main(
         Example values are 0.5 or 0.1.
     batch_size : int, optional
         Number of samples per batch in the Dataloaders. The default is 32.
-    train_percentage : float, optional
-        Percentage of the Dataset to be used for Training. The default is 0.7.
-    validation_percentage : float, optional
-        Percentage of the Dataset to be used for Validation. The default is 0.15.
-    optimizer_type : str, optional
-        Can be "ADAM" or "SGD". The default is "ADAM".
-    loss : str, optional
-        Cane be "BCE" of "L1". The default is "BCE".
-    dir_data : str, optional
-        Directory where the folders "/images", "/labels" and "noPV/" are.
-        The default is "/raid/machinelearning_course/data/".
-    prop_noPV : float, optional
+    dir_data_training : str, optional
+        Directory where the folders "/images", "/labels" and "noPV/" are for the training set.
+    dir_data_validation : str, optional
+        Directory where the folders "/images", "/labels" and "noPV/" are for the validation set.
+    dir_data_test : str, optional
+        Directory where the folders "/images", "/labels" and "noPV/" are for the test set.
+    prop_noPV_training : float, optional
         Proportion of all noPV images to add. The default is 0.0.
     min_rescale_images : float, optional
         Minimum proportion of the image to keep for the RandomResizedCrop transform.
@@ -306,13 +336,10 @@ def main(
 
     # Instantiate the dataset
     roof_dataloader_train, roof_dataloader_validation, roof_dataloader_test = load_data(
-        dir_data,
-        # use_noPV,
-        prop_noPV,
+        dir_data_training,
+        prop_noPV_training,
         min_rescale_images,
-        batch_size,
-        train_percentage,
-        validation_percentage,
+        batch_size
     )
 
     if loss == "BCE":
