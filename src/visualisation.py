@@ -24,7 +24,7 @@ def compare_labels(true_label, predicted_label):
     comp_array = np.array([predicted_label + true_label, predicted_label - true_label])
     result = np.empty((height, width), dtype=int)
     for i, j in product(range(height), range(height)):
-        result[i, j] = COMPARE_MAP_uint8[tuple(comp_array[:, i, j])]
+        result[i, j] = COMPARE_MAP_01[tuple(comp_array[:, i, j])]
     return result
 
 
