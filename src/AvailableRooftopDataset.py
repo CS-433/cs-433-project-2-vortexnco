@@ -118,16 +118,14 @@ class AvailableRooftopDataset(Dataset):
         # Define a seed to apply the same transforms for 'image' and 'label'
         seed = np.random.randint(2147483647)
 
-        # Apply the transforms if any
-        if self.transform:
-            # Apply transforms on image (and define seed)
-            torch.manual_seed(seed)
-            random.seed(seed)
-            image = self.transform(image)
+        # Apply transforms on image (and define seed)
+        torch.manual_seed(seed)
+        random.seed(seed)
+        image = self.transform(image)
 
-            # Apply transforms on label (and redefine seed)
-            torch.manual_seed(seed)
-            random.seed(seed)
-            label = self.transform(label)
+        # Apply transforms on label (and redefine seed)
+        torch.manual_seed(seed)
+        random.seed(seed)
+        label = self.transform(label)
 
         return image, label[0]
