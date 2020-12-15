@@ -211,6 +211,7 @@ def main(
     train_percentage: float = 0.7,
     validation_percentage: float = 0.15,
     optimizer : str = "ADAM",
+    loss : str = "BCE",
     dir_data: str = "../data/",
     prop_noPV: float = 0.0,
     min_rescale_images: float = 0.6,
@@ -246,8 +247,10 @@ def main(
         Percentage of the Dataset to be used for Training. The default is 0.7.
     validation_percentage : float, optional
         Percentage of the Dataset to be used for Validation. The default is 0.15.
-    optimizer : str
-        Can be "ADAM" or "SGD".
+    optimizer : str, optional
+        Can be "ADAM" or "SGD". The default is "ADAM".
+    loss : str, optional
+        Cane be "BCE" of "L1". The default is "BCE".
     dir_data : str, optional
         Directory where the folders "/images", "/labels" and "noPV/" are.
         The default is "/raid/machinelearning_course/data/".
@@ -312,11 +315,16 @@ def main(
         validation_percentage,
     )
 
-    # Create Binary cross entropy loss weighted according to positive pixels.
-    # pos_weight > 1 increases recall.
-    # pos_weight < 1 increases precision.
-    pos_weight = torch.tensor([weight_for_positive_class]).to(device)
-    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    if loss == "BCE":
+        # Create Binary cross entropy loss weighted according to positive pixels.
+        # pos_weight > 1 increases recall.
+        # pos_weight < 1 increases precision.
+        pos_weight = torch.tensor([weight_for_positive_class]).to(device)
+        criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    elif loss == "L1":
+        criterion = torch.nn.L1Loss()
+    else : 
+        raise NotImplementedError(f"{loss} is not implemented.")
 
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
