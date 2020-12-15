@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader
 
 from AvailableRooftopDataset import AvailableRooftopDataset
 from model.unet_model import UNet
-from pipeline import load_data
 from helpers import *
+from pipeline import load_data
 
 
 ## VISUALISATION
@@ -71,7 +71,7 @@ def show_label_comparison(true_label, predicted_label):
 
 
 ## TESTING (once threshold is chosen)
-def test(test_predictions, test_labels, threshold):
+def test_model(test_predictions, test_labels, threshold):
     """Returns evaluation measures over a test set.
 
     Inputs:
@@ -93,19 +93,20 @@ def test(test_predictions, test_labels, threshold):
     precision = np.zeros(n)
     recall = np.zeros(n)
     f1 = np.zeros(n)
-    support = np.zeros(n)
+    # support = np.zeros(n) # Isn't useful for binary classification apparently
 
     pred_probas = 1 / (1 + np.exp(-test_predictions))
     test_predictions = np.where(pred_probas > threshold, 1, 0)
-    for i, true, pred in enumerate(zip(test_labels, test_predictions)):
-        precision[i], recall[i], f1[i], support[i] = precision_recall_fscore_support(
-            true.flatten(), pred.flatten()
+    for i, (true, pred) in enumerate(zip(test_labels, test_predictions)):
+        precision[i], recall[i], f1[i], _ = precision_recall_fscore_support(
+            true.flatten(), pred.flatten(), average="binary", zero_division=0
         )
-    return f1, precision, recall, support
+    
+    return f1, precision, recall
 
 
 ## VALIDATION
-def validation(predictions, labels, n_thresholds, plot=True):
+def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     """Determine the best threshold given validation set and
     visualise results (precision-recall curve and F1-score against thresholds)
 
@@ -117,7 +118,7 @@ def validation(predictions, labels, n_thresholds, plot=True):
         true labels corresponding to predictions on validation set
     n_thresholds : int
         number of thresholds to test for
-    plot : bool
+    plot : bool, optional
         whether to plot results or not
 
     Returns:
@@ -182,7 +183,7 @@ def validation(predictions, labels, n_thresholds, plot=True):
     idx_best = np.argmax(f1_mid - (f1_upper - f1_lower))
     if plot:
         plot_precision_recall_f1(
-            thresholds, precision_summary, recall_summary, f1_summary, idx_best=idx_best
+            thresholds, prec_summary, rec_summary, f1_summary, idx_best=idx_best
         )
 
     return precision, recall, f1_scores, thresholds[idx_best]
@@ -272,7 +273,7 @@ def plot_precision_recall_f1(
 
 
 def main(
-    model_name, prop_noPV, load_data=True, validation=True, test=True, verbose=False
+    model_name, prop_noPV, from_file=True, validation=True, test=True, verbose=True, plot=True
 ):
     """
     Inputs:
@@ -282,7 +283,7 @@ def main(
     prop_noPV : float
         If generating data, what proportion of the noPV data should be included. This is intended to be the same proportion that the model was trained with.
         Should be between 0 and 1.
-    load_data : bool
+    from_file : bool
         Whether data should be loaded from a file; otherwise it will be generated.
         The file should:
             - be in the same directory as the model parameters
@@ -298,35 +299,29 @@ def main(
         The results are stored in a txt file called "test_results.txt" in the model directory.
     verbose : bool
         Whether to give information during run.
+    plot : bool
+        Whether to show plots during run.
     """
     model_dir = os.path.join(dir_models, model_name)
     params_file = os.path.join(model_dir, model_name)
     data_file = os.path.join(model_dir, "data.npz")
-    results_file = os.path.join(model_dir, "test_results.txt")
+    new_section = "=" * 50
 
-    # Import model parameters
     print("Importing model parameters from {}".format(params_file))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
     model.load_state_dict(torch.load(params_file, map_location=torch.device("cpu")))
 
-    if load_data:
-        print("=" * 50)
+    print(new_section)
+    if from_file:
         print("Loading data")
-        # arrays = np.load("../stuff/validation_set.npz")
         arrays = np.load(data_file)
-        # val_predictions = arrays["val_predictions"]
-        # val_labels = arrays["val_labels"]
-        # test_predictions = arrays["test_predictions"]
-        # test_labels = arrays["test_labels"]
         val_predictions, val_labels, test_predictions, test_labels = arrays.values()
     else:
-        # Generate validation and test sets
-        print("=" * 50)
         print("Generating data")
         _, validation_set, test_set = load_data(
-            dir_data="../data/",
+            dir_data="/raid/machinelearning_course/data",
             prop_noPV=prop_noPV,
             min_rescale_images=0.6,
             batch_size=100,
@@ -360,47 +355,41 @@ def main(
     test_labels = np.where(test_labels > threshold_true, 1, 0)
 
     if validation:
-        print("=" * 50)
+        print(new_section)
         print("Validation starting")
-        _, _, _, best_threshold = validation(
-            val_predictions, val_labels, n_thresholds=100
+        _, _, _, best_threshold = find_best_threshold(
+            val_predictions, val_labels, n_thresholds=100, plot=plot
         )
-        print("Found best threshold to be {}".format(best_threshold))
+        print(f"Found best threshold to be {best_threshold:.4f}")
 
     if test:
-        print("=" * 50)
+        print(new_section)
         print("Testing starting")
-        f1, precision, recall, support = test(
+        f1, precision, recall = test_model(
             test_predictions, test_labels, best_threshold
         )
-        summary_type = "mean"
-        results = np.column_stack(
-            (
-                summary_stats(x, type=summary_type)
-                for x in [f1, precision, recall, support]
-            )
-        )
-        print("Summary statistics are based on the {}.".format(summary_type))
-        print(
-            "Results (mid-point, lower, upper) for threshold = {}:".format(
-                best_threshold
-            )
-        )
-        for i, measure in enumerate(["F1-score", "Precision", "Recall", "Support"]):
-            print("{}: {}".format(measure, results[:, i]))
+        summary_type = "median"
+        results_file = os.path.join(model_dir, "test_results.txt")
+        results = np.column_stack([summary_stats(x, type=summary_type) for x in [f1, precision, recall]])
+        print(f"Summary statistics are based on the {summary_type}")
+        print("Results (mid-point, lower, upper):")
+        print(f"\tBest threshold = {best_threshold}")
+        for i, measure in enumerate(["F1-score", "Precision", "Recall"]):
+            print("\t{}: {}".format(measure, results[:, i]))
+        print(new_section)
         print("Saving results to {}".format(results_file))
         np.savetxt(
             results_file,
             results,
             delimiter=" ",
-            header="Threshold: {}\nf1_score  precision  recall  support".format(
-                best_threshold
-            ),
+            header=f"Threshold: {best_threshold}\nf1_score  precision  recall",
         )
+        
+    print("\n")
 
 
 if __name__ == "__main__":
-    dir_models = "../stuff/FinalModels/"
+    dir_models = "/home/auguste/FinalModels/"
 
     noPV_percentages = dict(zip(os.listdir(dir_models), [0 for _ in range(1000)]))
     noPV_percentages[
@@ -409,15 +398,16 @@ if __name__ == "__main__":
     noPV_percentages[
         "Adam_e_3_100percentnoPV_BCEwithweights_epochs_80_rescheduledat50_toe4"
     ] = 1
-    print(noPV_percentages)
+    # print(noPV_percentages)
 
     # for model in noPV_percentages.keys():
     model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
     main(
         model_name=model,
         prop_noPV=noPV_percentages[model],
-        load_data=True,
+        from_file=True,
         validation=True,
         test=True,
-        verbose=False,
+        verbose=True,
+        plot=False
     )

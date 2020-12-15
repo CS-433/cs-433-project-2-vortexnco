@@ -59,8 +59,8 @@ def summary_stats(array, axis=0, type="median"):
     if type in ["mean", "average", "avg"]:
         mid = np.mean(array, axis=axis)
         std = np.std(array, axis=axis)
-        lower = avg - std
-        upper = avg + std
+        lower = mid - std
+        upper = mid + std
     elif type in ["median", "order", "quantiles"]:
         mid = np.median(array, axis=axis)
         lower = np.percentile(array, 25, axis=axis)

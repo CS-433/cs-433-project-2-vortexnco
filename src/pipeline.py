@@ -2,7 +2,6 @@ import torch
 
 from AvailableRooftopDataset import AvailableRooftopDataset
 from torch.utils.data import DataLoader
-from helpers import get_DataLoaders
 from torch.optim.lr_scheduler import MultiStepLR
 from model.unet_model import UNet
 from torchvision import transforms
@@ -68,7 +67,7 @@ def load_data(
 
     ## Define datasets
     # Instantiate the training dataset
-    roof_training_dataset = AvailableRooftopDataset(
+    roof_train_dataset = AvailableRooftopDataset(
         dir_PV=os.path.join(dir_data_training, "PV"),
         dir_noPV=os.path.join(dir_data_training, "noPV"),
         dir_labels=os.path.join(dir_data_training, "labels"),
@@ -107,7 +106,7 @@ def load_data(
         roof_test_dataset, batch_size=batch_size, shuffle=True, num_workers=0
     )
 
-    return train_dl, validation_dl, test_dl
+    return roof_train_dl, roof_validation_dl, roof_test_dl
 
 
 def train(
@@ -235,12 +234,14 @@ def train(
 def main(
     num_epochs: int = 100,
     learning_rate: float = 1e-3,
+    optimizer_type : str = "ADAM",
+    loss : str = "BCE",
     use_scheduler: bool = False,
     milestones_scheduler: list = None,
     gamma_scheduler: float = None,
     batch_size: int = 32,
     # dir_data: str = "/raid/machinelearning_course/data/",
-    dir_data_training: str = "../data/training",
+    dir_data_training: str = "../data/train",
     dir_data_validation: str = "../data/validation",
     dir_data_test: str = "../data/test",
     prop_noPV_training: float = 0.0,
@@ -263,6 +264,10 @@ def main(
         Number of epochs to train. The default is 100.
     learning_rate : float, optional
         Learning rate of the Optimizer. The default is 1e-3.
+    optimizer_type : str, optional
+        Can be "ADAM" or "SGD". The default is "ADAM".
+    loss : str, optional
+        Cane be "BCE" of "L1". The default is "BCE".
     use_scheduler : bool
         If True, use a MultiStepLR. You should the next two parameters if used.
     milestones_scheduler : list
@@ -337,11 +342,16 @@ def main(
         batch_size
     )
 
-    # Create Binary cross entropy loss weighted according to positive pixels.
-    # pos_weight > 1 increases recall.
-    # pos_weight < 1 increases precision.
-    pos_weight = torch.tensor([weight_for_positive_class]).to(device)
-    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    if loss == "BCE":
+        # Create Binary cross entropy loss weighted according to positive pixels.
+        # pos_weight > 1 increases recall.
+        # pos_weight < 1 increases precision.
+        pos_weight = torch.tensor([weight_for_positive_class]).to(device)
+        criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+    elif loss == "L1":
+        criterion = torch.nn.L1Loss()
+    else : 
+        raise NotImplementedError(f"{loss} is not implemented.")
 
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
     model = model.to(device)
@@ -355,7 +365,12 @@ def main(
 
     # If we're training or retraining a model
     if (num_epochs > 0):
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        if optimizer_type == "ADAM":
+            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        elif optimizer_type == "SGD":
+            optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+        else : 
+            raise NotImplementedError(f"{optimizer} is not implemented.")
         scheduler = None
         if use_scheduler:
             scheduler = MultiStepLR(
