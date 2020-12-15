@@ -5,10 +5,11 @@ map_rgb = {0: [0, 255, 0], 1: [0, 0, 0], 2: [255, 0, 0], 3: [255, 215, 0]}
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+import torch
 
 from PIL import Image
 from itertools import product
-
+from pipeline import load_data
 
 # If color values are binary
 COMPARE_MAP_01 = {(2, 0): 0, (0, 0): 1, (1, 1): 2, (1, -1): 3}
@@ -28,7 +29,50 @@ def compare_labels(true_label, predicted_label):
     return result
 
 
-def show_label_comparison(true_label, predicted_label):
+def show_full_comparison(model, threshold_prediction = 0.9):
+    
+    _, val, te =  load_data(
+        dir_data_training = "../data/train",
+        dir_data_validation = "../data/validation",
+        dir_data_test= "../data/test",
+        prop_noPV_training = 0.0,
+        min_rescale_images = 0.6,
+        batch_size = 1
+    )
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    model.eval()
+    with torch.no_grad():
+        images, labels = next(iter(val))
+        images = images.to(device, dtype=torch.float32)
+        predictions = model(images)
+    
+    i=0
+    image_numpy = images[i].cpu().numpy().transpose((1,2,0))
+    plt.imshow(image_numpy)
+    plt.show()
+    
+    label_numpy = labels[i].cpu().numpy()
+    plt.imshow(label_numpy)
+    plt.show()
+    
+    #transforming output of model to probabilities
+    predicted_numpy = np.squeeze(predictions.cpu().numpy()[i])
+    predicted_numpy = 1/(1 + np.exp(-predicted_numpy)) 
+    plt.imshow(predicted_numpy)
+    plt.show()
+    
+    threshold_true_label = 0.5
+    
+    #Thresholding prediction probabilities to make a decision
+    plt.imshow(np.where(predicted_numpy>threshold_prediction, 1., 0.))
+    plt.show()
+    
+    #Comparing label (label needs to be thresholded because of transforms) to decision 
+    show_label_comparison(np.where(label_numpy>threshold_true_label, 1, 0), np.where(predicted_numpy>threshold_prediction, 1, 0))
+
+def show_label_comparison(true_label, predicted_label, ax):
     """
     Plots an array annotated with TP, FP, TN and FN
 
@@ -38,6 +82,8 @@ def show_label_comparison(true_label, predicted_label):
         True label.
     predicted_label : ndarray of 1s and 0s
         Prediction from the model.
+    ax :
+        Axe object on which to plot the comparison
 
     Returns
     -------
@@ -47,7 +93,6 @@ def show_label_comparison(true_label, predicted_label):
     height, width = comparison.shape
     # Convert to RGB
     comparison_rgb = np.empty((height, width, 3), dtype=int)
-    f = lambda i, j: map_rgb[comparison[i, j]]
 
     for i, j in product(range(height), range(width)):
         comparison_rgb[i, j, :] = map_rgb[comparison[i, j]]
@@ -57,8 +102,7 @@ def show_label_comparison(true_label, predicted_label):
     TN = mpatches.Patch(color="black", label="TN")
     FP = mpatches.Patch(color="red", label="FP")
     FN = mpatches.Patch(color=[255 / 255, 215 / 255, 0], label="FN")
-    plt.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
-    plt.show()
+    ax.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
 
 
 def plot_precision_recall_f1(
