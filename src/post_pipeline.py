@@ -4,10 +4,10 @@ import matplotlib.patches as mpatches
 import numpy as np
 import os
 import random
+import sklearn.metrics
 
 from PIL import Image
 from itertools import product
-from sklearn.metrics import precision_recall_fscore_support
 from torch.utils.data import DataLoader
 
 from AvailableRooftopDataset import AvailableRooftopDataset
@@ -71,7 +71,7 @@ def show_label_comparison(true_label, predicted_label):
 
 
 ## TESTING (once threshold is chosen)
-def test_model(test_predictions, test_labels, threshold):
+def test_model(test_predictions, test_labels, threshold, *args):
     """Returns evaluation measures over a test set.
 
     Inputs:
@@ -83,32 +83,46 @@ def test_model(test_predictions, test_labels, threshold):
         Array of ints containing the true labels for each image in the test set.
     threshold : float
         Threshold over which predictions should be decided as 1.
+    args : strings
+        Metrics to use for testing: the list of accepted strings can be found at
+        https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter.
+
 
     Returns:
     ========
-    f1, precision, recall, support : ndarray
-        Evaluation measures for each prediction
+    results : ndarray
+        Test results; rows correspond to datapoints
+        and columns correspond to metrics (in the order they were passed)
     """
     n = len(test_predictions)
-    precision = np.zeros(n)
-    recall = np.zeros(n)
-    f1 = np.zeros(n)
-    # support = np.zeros(n) # Isn't useful for binary classification apparently
+    results = np.zeros((n, len(args)))
+    scorings = map(sklearn.metrics.get_scorer, args)
+    # precision = np.zeros(n)
+    # recall = np.zeros(n)
+    # f1 = np.zeros(n)
 
     pred_probas = 1 / (1 + np.exp(-test_predictions))
     test_predictions = np.where(pred_probas > threshold, 1, 0)
     for i, (true, pred) in enumerate(zip(test_labels, test_predictions)):
-        precision[i], recall[i], f1[i], _ = precision_recall_fscore_support(
-            true.flatten(), pred.flatten(), average="binary", zero_division=0
-        )
+        # precision[i], recall[i], f1[i], _ = precision_recall_fscore_support(
+        #     true.flatten(), pred.flatten(), average="binary", zero_division=0
+        # )
+        true = true.flatten()
+        pred = pred.flatten()
+        for j, scoring in enumerate(scorings):
+            results[i, j] = scoring(true, pred)
     
-    return f1, precision, recall
+    # return f1, precision, recall
+    return results
 
 
 ## VALIDATION
 def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     """Determine the best threshold given validation set and
-    visualise results (precision-recall curve and F1-score against thresholds)
+    visualise results (precision-recall curve and F1-score against thresholds).
+    This is based on the sklearn.metrics.precision_recall_curve function
+    but adapred so that thresholds can be the same for each image (that way
+    summary statistics can be computed).
 
     Inputs:
     ========
@@ -178,7 +192,7 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     f1_summary = summary_stats(f1_scores, type="median")
 
     # Estimating what the threshold should be set to
-    f1_mid, f1_lower, f1_upper = (row for row in f1_summary)
+    f1_lower, f1_mid, f1_upper = (row for row in f1_summary)
     # This measure penalises uncertain choices (maximize (mean - spread))
     idx_best = np.argmax(f1_mid - (f1_upper - f1_lower))
     if plot:
@@ -198,26 +212,21 @@ def plot_precision_recall_f1(
     to_file=False,
 ):
     """Plot precision-recall curve and F1 score against thresholds.
+    Summary arrays should have the form:
+        First row is lower bound (e.g. mean - std or first quartile)
+        Second row is mid-point (e.g. mean or median)
+        Third row is upper bound (e.g. mean + std or third quartile)
 
     Inputs:
     ========
     thresholds : ndarray
         Thresholds that give rise to precision, recall and F1 values.
     precision_summary : ndarray
-        Contains summary statistics of precision for each threshold:
-        First row is mid-point (e.g. mean or median)
-        Second row is lower bound (e.g. mean - std or first quartile)
-        Third row is upper bound (e.g. mean + std or third quartile)
+        Summary of precision for each threshold.
     recall_summary : ndarray
-        Contains summary statistics of recall for each threshold:
-        First row is mid-point (e.g. mean or median)
-        Second row is lower bound (e.g. mean - std or first quartile)
-        Third row is upper bound (e.g. mean + std or third quartile)
+        Summary of recall for each threshold.
     f1_summary : ndarray
-        Contains summary statistics of F1-score for each threshold:
-        First row is mid-point (e.g. mean or median)
-        Second row is lower bound (e.g. mean - std or first quartile)
-        Third row is upper bound (e.g. mean + std or third quartile)
+        Summary of F1-score for each threshold.
     idx_best : int, optional
         Index of the best threshold.
         If None then no information is added to the plots.
@@ -226,9 +235,9 @@ def plot_precision_recall_f1(
     ========
     None
     """
-    precision_mid, precision_lower, precision_upper = (row for row in precision_summary)
-    recall_mid, recall_lower, recall_upper = (row for row in recall_summary)
-    f1_mid, f1_lower, f1_upper = (row for row in f1_summary)
+    precision_lower, precision_mid, precision_upper = (row for row in precision_summary)
+    recall_lower, recall_mid, recall_upper = (row for row in recall_summary)
+    f1_lower, f1_mid, f1_upper = (row for row in f1_summary)
 
     plt.figure(1)
     ax_f1 = plt.axes()
@@ -273,16 +282,17 @@ def plot_precision_recall_f1(
 
 
 def main(
-    model_name, prop_noPV, from_file=True, validation=True, test=True, verbose=True, plot=True
+    model_name,
+    from_file=True,
+    validation=True,
+    test=['precision', 'recall', 'f1', 'accuracy', 'jaccard'],
+    plot=True
 ):
     """
     Inputs:
     ========
     model_name : str
         Which model to do things with. This is assumed to be both the name of the directory in which parameters are stored, and the name of the parameters file.
-    prop_noPV : float
-        If generating data, what proportion of the noPV data should be included. This is intended to be the same proportion that the model was trained with.
-        Should be between 0 and 1.
     from_file : bool
         Whether data should be loaded from a file; otherwise it will be generated.
         The file should:
@@ -294,17 +304,15 @@ def main(
         Predictions are expected to be raw (not probabilities).
     validation : bool
         Whether to go through validation steps (to find the best threshold).
-    test : bool
-        Whether to go through testing steps (evaluate the model with a given threshold).
+    test : list of str
+        Which metrics to use for testing (evaluate the model with a given threshold).
         The results are stored in a txt file called "test_results.txt" in the model directory.
-    verbose : bool
-        Whether to give information during run.
+        If empty then testing is skipped.
     plot : bool
         Whether to show plots during run.
     """
     model_dir = os.path.join(dir_models, model_name)
     params_file = os.path.join(model_dir, model_name)
-    data_file = os.path.join(model_dir, "data.npz")
     new_section = "=" * 50
 
     print("Importing model parameters from {}".format(params_file))
@@ -313,6 +321,8 @@ def main(
     model = model.to(device)
     model.load_state_dict(torch.load(params_file, map_location=torch.device("cpu")))
 
+    # File where data are stored, or will be if they aren't already
+    data_file = os.path.join(model_dir, "data.npz")
     print(new_section)
     if from_file:
         print("Loading data")
@@ -321,7 +331,7 @@ def main(
     else:
         print("Generating data")
         _, validation_set, test_set = load_data(
-            dir_data="/raid/machinelearning_course/data",
+            dir_data=dir_data,
             prop_noPV=prop_noPV,
             min_rescale_images=0.6,
             batch_size=100,
@@ -364,25 +374,27 @@ def main(
 
     if test:
         print(new_section)
-        print("Testing starting")
-        f1, precision, recall = test_model(
-            test_predictions, test_labels, best_threshold
+        print("Testing starting with metrics:")
+        print(', '.join(test))
+        results = test_model(
+            test_predictions, test_labels, best_threshold, *test
         )
         summary_type = "median"
         results_file = os.path.join(model_dir, "test_results.txt")
-        results = np.column_stack([summary_stats(x, type=summary_type) for x in [f1, precision, recall]])
+        # results = np.column_stack([summary_stats(x, type=summary_type) for x in [f1, precision, recall]])
+        results_summary = np.transpose(summary_stats(results, type=summary_type))
         print(f"Summary statistics are based on the {summary_type}")
-        print("Results (mid-point, lower, upper):")
-        print(f"\tBest threshold = {best_threshold}")
-        for i, measure in enumerate(["F1-score", "Precision", "Recall"]):
-            print("\t{}: {}".format(measure, results[:, i]))
+        print("Results (lower, mid-point, upper):")
+        print(f"\tBest threshold = {best_threshold:.4f}")
+        for i, measure in enumerate(test):
+            print("\t{}: {}".format(measure, results[i, :]))
         print(new_section)
         print("Saving results to {}".format(results_file))
         np.savetxt(
             results_file,
-            results,
+            results_summary,
             delimiter=" ",
-            header=f"Threshold: {best_threshold}\nf1_score  precision  recall",
+            header=f"Threshold: {best_threshold}\n{'  '.join(test)}",
         )
         
     print("\n")
@@ -390,24 +402,26 @@ def main(
 
 if __name__ == "__main__":
     dir_models = "/home/auguste/FinalModels/"
+    dir_data = "/raid/machinelearning_course/data"
 
-    noPV_percentages = dict(zip(os.listdir(dir_models), [0 for _ in range(1000)]))
-    noPV_percentages[
-        "Adam_e_3_20percentnoPV_BCEwithweights_epochs_80_rescheduledat50_toe4"
-    ] = 0.2
-    noPV_percentages[
-        "Adam_e_3_100percentnoPV_BCEwithweights_epochs_80_rescheduledat50_toe4"
-    ] = 1
+    # noPV_percentages = dict(zip(os.listdir(dir_models), [0 for _ in range(1000)]))
+    # noPV_percentages[
+    #     "Adam_e_3_20percentnoPV_BCEwithweights_epochs_80_rescheduledat50_toe4"
+    # ] = 0.2
+    # noPV_percentages[
+    #     "Adam_e_3_100percentnoPV_BCEwithweights_epochs_80_rescheduledat50_toe4"
+    # ] = 1
     # print(noPV_percentages)
 
-    # for model in noPV_percentages.keys():
+    test = ['precision', 'recall', 'f1', 'accuracy', 'jaccard'],
+
+    # for model in os.listdir(dir_models):
     model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
     main(
         model_name=model,
-        prop_noPV=noPV_percentages[model],
-        from_file=True,
+        # prop_noPV=noPV_percentages[model],
+        from_file=True, # Should probably be put to a filename
         validation=True,
-        test=True,
-        verbose=True,
+        test=test,
         plot=False
     )
