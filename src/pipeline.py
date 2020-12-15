@@ -210,7 +210,7 @@ def main(
     batch_size: int = 32,
     train_percentage: float = 0.7,
     validation_percentage: float = 0.15,
-    optimizer : str = "ADAM",
+    optimizer_type : str = "ADAM",
     loss : str = "BCE",
     dir_data: str = "../data/",
     prop_noPV: float = 0.0,
@@ -247,7 +247,7 @@ def main(
         Percentage of the Dataset to be used for Training. The default is 0.7.
     validation_percentage : float, optional
         Percentage of the Dataset to be used for Validation. The default is 0.15.
-    optimizer : str, optional
+    optimizer_type : str, optional
         Can be "ADAM" or "SGD". The default is "ADAM".
     loss : str, optional
         Cane be "BCE" of "L1". The default is "BCE".
@@ -338,9 +338,9 @@ def main(
 
     # If we're training or retraining a model
     if (num_epochs > 0):
-        if optimizer == "ADAM":
+        if optimizer_type == "ADAM":
             optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-        elif optimizer == "SGD":
+        elif optimizer_type == "SGD":
             optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
         else : 
             raise NotImplementedError(f"{optimizer} is not implemented.")
