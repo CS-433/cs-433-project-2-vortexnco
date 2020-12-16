@@ -388,12 +388,28 @@ def main(
     test_labels = np.where(test_labels > threshold_true, 1, 0)
 
     if validation:
+        n_thresholds=101
         print(new_section)
         print("Validation starting")
-        _, _, _, best_threshold = find_best_threshold(
-            val_predictions, val_labels, n_thresholds=101, concat=concat, plot=plot
+        precision, recall, f1_scores, best_threshold = find_best_threshold(
+            val_predictions, val_labels, n_thresholds, concat=concat, plot=plot
         )
         print(f"Found best threshold to be {best_threshold:.4f}")
+        if to_file:
+            precision_lower, precision_mid, precision_upper = (row for row in summary_stats(precision))
+            f1_lower, f1_mid, f1_upper = (row for row in summary_stats(f1_scores))
+            _, recall_mid, _ = (row for row in summary_stats(recall))
+            print(precision_lower.shape)
+            results_summary = np.c_[np.linspace(0, 1, n_thresholds), precision_lower, precision_mid, precision_upper, recall_mid, f1_lower, f1_mid, f1_upper]
+            results_file = os.path.join(model_dir, "prec_rec_f1.txt")
+            print("Saving results to {}".format(results_file))
+            np.savetxt(
+                results_file,
+                results_summary,
+                # fmt="%.4f",
+                delimiter=" ",
+                header=f"Threshold: {best_threshold:.3f}\nthresholds precision_lower  precision_mid  precision_upper  recall_mid  f1_lower  f1_mid  f1_upper"
+            )
 
     if test:
         print(new_section)
@@ -431,10 +447,10 @@ def main(
 
 
 if __name__ == "__main__":
-    dir_models = "/home/auguste/allFinalModels/"
-    dir_data = "/raid/machinelearning_course/data"
-    # dir_models = "../stuff/models_data/"
-    # dir_data = "../data/data/"
+    # dir_models = "/home/auguste/allFinalModels/"
+    # dir_data = "/raid/machinelearning_course/data"
+    dir_models = "../stuff/models_data/"
+    dir_data = "../data/data/"
 
     test = ["precision", "recall", "f1", "jaccard"]
 
