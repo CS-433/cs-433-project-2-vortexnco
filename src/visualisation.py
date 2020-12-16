@@ -28,12 +28,31 @@ def compare_labels(true_label, predicted_label):
         result[i, j] = COMPARE_MAP_01[tuple(comp_array[:, i, j])]
     return result
 
-
-def show_full_comparisonTest(model, threshold_prediction = 0.9,
+def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
                         dir_data_training = "../data/train",
                         dir_data_validation = "../data/validation",
                         dir_data_test= "../data/test"):
-    
+    """
+    Creates a generator for plots vizualizing the results of the model.
+
+    Parameters
+    ----------
+    model : TYPE
+        Model to use.
+    threshold_prediction : float, optional
+        Threshold to use after the model predicts probabilities. The default is 0.9.
+    dir_data_training : TYPE, optional
+        Directory of Train data. The default is "../data/train".
+    dir_data_validation : TYPE, optional
+        Directory of Validation data. The default is "../data/validation".
+    dir_data_test : TYPE, optional
+        Directory of Test data. The default is "../data/test".
+
+    Returns
+    -------
+    None.
+
+    """
     _, _, test_dl =  load_data(
         dir_data_training,
         dir_data_validation,
@@ -53,12 +72,14 @@ def show_full_comparisonTest(model, threshold_prediction = 0.9,
         
         #Plotting first image of batch
         i=0
-        image_numpy = images[i].cpu().numpy().transpose((1,2,0))
-        
         fig, axs = plt.subplots(2,2, figsize = (8,8))
+
+        #Showing Aerial Image
+        image_numpy = images[i].cpu().numpy().transpose((1,2,0))        
         axs[0,0].imshow(image_numpy)
         axs[0,0].set_title("Image")
         
+        #Sgowing True label
         label_numpy = labels[i].cpu().numpy()
         axs[0,1].imshow(label_numpy)
         axs[0,1].set_title("True label")
@@ -67,13 +88,14 @@ def show_full_comparisonTest(model, threshold_prediction = 0.9,
         predicted_numpy = np.squeeze(predictions.cpu().numpy()[i])
         predicted_numpy = 1/(1 + np.exp(-predicted_numpy)) 
         
-        threshold_true_label = 0.5
+        
         #Thresholding prediction probabilities to make a decision
         axs[1,0].imshow(np.where(predicted_numpy>threshold_prediction, 1., 0.))
         axs[1,0].set_title("Prediction")
         
-        #Comparing label (label needs to be thresholded because of transforms) to decision 
-        show_label_comparison(np.where(label_numpy>threshold_true_label, 1, 0), np.where(predicted_numpy>threshold_prediction, 1, 0), axs[1,1])
+
+        #Comparing label to decision 
+        show_label_comparison(label_numpy, np.where(predicted_numpy>threshold_prediction, 1, 0), axs[1,1])
         fig.tight_layout()
         fig.show()
         yield
