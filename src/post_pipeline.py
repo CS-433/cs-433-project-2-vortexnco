@@ -213,15 +213,6 @@ def main(
         val_predictions, val_labels, test_predictions, test_labels = arrays.values()
     else:
         print("Generating data")
-<<<<<<< HEAD
-        _, validation_set, test_set = load_data(
-            dir_data=dir_data,
-            prop_noPV=prop_noPV,
-            min_rescale_images=0.6,
-            batch_size=100,
-            train_percentage=0.7,
-            validation_percentage=0.15,
-=======
         dir_data_validation = os.path.join(dir_data, "validation")
         dir_data_test = os.path.join(dir_data, "test")
 
@@ -232,7 +223,6 @@ def main(
             prop_noPV_training=0,  # Has no impact
             min_rescale_images=0,  # Has no impact
             batch_size=100,  # All of them
->>>>>>> b9dc3840f51b9eb11b8e459b45a0e55204fc0873
         )
 
         model.eval()
@@ -302,20 +292,20 @@ def main(
 
 
 if __name__ == "__main__":
-    dir_models = "/home/auguste/modelsNewData/"
-    dir_data = "/raid/machinelearning_course/data"
+    dir_models = "/home/auguste/allFinalModels/"
+    dir_data = "/raid/machinelearning_course/data_split"
     #dir_models = "../stuff/models_data/"
     #dir_data = "../data/data/"
 
     test = ["precision", "recall", "f1", "accuracy", "jaccard"]
 
-    # for model in os.listdir(dir_models):
-    model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
-    main(
-        model_name=model,
-        from_file=True,  # Should probably be put to a filename
-        to_file=True,
-        validation=True,
-        test=test,
-        plot=True,
-    )
+    for model in os.listdir(dir_models):
+    #model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
+        main(
+            model_name=model,
+            from_file=True,  # Should probably be put to a filename
+            to_file=True,
+            validation=True,
+            test=test,
+            plot=False,
+        )
