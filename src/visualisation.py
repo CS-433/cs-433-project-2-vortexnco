@@ -63,12 +63,12 @@ def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
 
     """
     _, _, test_dl =  load_data(
-        dir_data_training,
-        dir_data_validation,
-        dir_data_test,
         prop_noPV_training = 0.0, #dummy value since only used in Train
         min_rescale_images = 0.6, #dummy value since only used in Train
-        batch_size = 1
+        batch_size = 1,
+        dir_data_training = dir_data_training,
+        dir_data_validation = dir_data_validation,
+        dir_data_test = dir_data_test,
     )
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
