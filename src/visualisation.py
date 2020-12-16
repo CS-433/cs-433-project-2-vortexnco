@@ -37,6 +37,7 @@ def compare_labels(true_label, predicted_label):
         result[i, j] = COMPARE_MAP_01[tuple(comp_array[:, i, j])]
     return result
 
+
 def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
                         dir_data_training = "../data/train",
                         dir_data_validation = "../data/validation",
@@ -57,10 +58,10 @@ def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
     dir_data_test : TYPE, optional
         Directory of Test data. The default is "../data/test".
 
-    Returns
-    -------
-    None.
+    Returns:
 
+    -------
+    None
     """
     _, _, test_dl =  load_data(
         dir_data_training,
