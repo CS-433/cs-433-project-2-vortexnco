@@ -5,6 +5,7 @@
 %\usepackage[T1]{fontenc}
 
 \usepackage{bbm}
+\usepackage{bm} % Bold math
 \usepackage{mathtools}
 \usepackage{listings}
 \usepackage{amsmath}
@@ -32,6 +33,8 @@
 \definecolor{links}{HTML}{2A1B81}
 \hypersetup{colorlinks=true,citecolor=blue,linkcolor=,urlcolor=links}
 
+\renewcommand\P[1]{\mathbb{P}\!\left\{#1\right\}}
+\newcommand\given{\:\middle|\:}
 
 \newcommand\tl[1]{\{\text{Label} = #1\}}
 \newcommand\pl[1]{\{\text{Pred} = #1\}}
@@ -196,46 +199,54 @@ we use a sigmoid to transform the weights into numbers in $[0,1]$.
 Once this is done, we still need to find the best decision boundary---the threshold probability $\theta$ over which a pixel is decided to be available for PV.
 For that we perform a grid-search over thresholds, computing the $F_1$-score over our validation set
 for each threshold.
-Then, we compute order statistics (first, second and third quartiles) and find the threshold that maximizes the following metric:
-\begin{equation} \label{eq:threshold_metric}
-    f(\theta) = Q_2(\theta) - (Q_3(\theta) - Q_1(\theta))
-\end{equation}
-where $Q_i$ is the $i$\textsuperscript{th} quartile.
-Our reasoning is that while the median $F_1$-score
-should be high, we should also prioritize
-values for which we are more certain of the ``true'' $F_1$-score.
+Finally, we compute the median $Q_2(\theta)$ for each threshold and find the one that maximizes this.
+%Then, we compute order statistics (first, second and third quartiles) and find the threshold that maximizes the following metric:
+%\begin{equation} \label{eq:threshold_metric}
+%    f(\theta) = Q_2(\theta) - (Q_3(\theta) - Q_1(\theta))
+%\end{equation}
+%where $Q_i$ is the $i$\textsuperscript{th} quartile.
+%Our reasoning is that while the median $F_1$-score
+%should be high, we should also prioritize
+%values for which we are more certain of the ``true'' $F_1$-score.
 
 Once the best threshold is found, we use this to produce
 the final model; we apply this on our test set and compute
 standard classification metrics for each prediction.
 
 
-As a reminder, the precision of the prediction is computed as
-\begin{equation*}
-    \text{precision} = \frac{\#\tp}{\#\tl1}
-\end{equation*}
-and the recall as
-\begin{equation*}
-    \text{recall} = \frac{\#\tp}{\#\pl1},
-\end{equation*}
-where $\tl{i}$ corresponds to the set of pixels classified as $i$ is the ground-truth label and 
-$\pl{i}$ corresponds to the set of pixels classified as 1 is the predicted label.
+As a reminder, the precision of the prediction
+corresponds to $\P{\text{Pred}=1 \given \text{Label} = 1}$ while
+the recall corresponds to $\P{\text{Label}=1 \given \text{Pred} = 1}$.
+As such, both are susceptible to become undefined if
+$\#\tl1 = 0$ or $\#\pl1 = 0$, respectively.
 
-The $F_1$-score is computed as 
-\begin{equation*}
-    F_1 = 2 \times \frac{\text{precision} \times \text{recall}}{
-\text{precision} + \text{recall}}
-\end{equation*}
+Since we have noPV images in the validation set, 
+% is computed as
+% \begin{equation*}
+%     \text{precision} = \frac{\#\tp}{\#\tl1}
+% \end{equation*}
+% and the recall as
+% \begin{equation*}
+%     \text{recall} = \frac{\#\tp}{\#\pl1},
+% \end{equation*}
+% where $\tl{i}$ corresponds to the set of pixels classified as $i$ is the ground-truth label and 
+% $\pl{i}$ corresponds to the set of pixels classified as 1 is the predicted label.
 
-Additionally, we compute the accuracy as
-\begin{align*}
-    \text{accuracy} = \\
-    \frac{\#\tp + \#\tn}{\#\{\text{All}\}}
-\end{align*}
-and the Jaccard loss or intersection-over-union (IoU) as
-\begin{equation*}
-    \text{IoU} = \frac{\#\tp}{\#\{\text{Pred} = 1 \cup \text{Label} = 1\}}.
-\end{equation*}
+% The $F_1$-score is computed as 
+% \begin{equation*}
+%     F_1 = 2 \times \frac{\text{precision} \times \text{recall}}{
+% \text{precision} + \text{recall}}
+% \end{equation*}
+% 
+% Additionally, we compute the accuracy as
+% \begin{align*}
+%     \text{accuracy} = \\
+%     \frac{\#\tp + \#\tn}{\#\{\text{All}\}}
+% \end{align*}
+% and the Jaccard loss or intersection-over-union (IoU) as
+% \begin{equation*}
+%     \text{IoU} = \frac{\#\tp}{\#\{\text{Pred} = 1 \cup \text{Label} = 1\}}.
+% \end{equation*}
 
 The way we treat images that are noPV is quite important for
 measuring the performance of a model.
@@ -244,11 +255,47 @@ noPV images, whereas the validation and test sets are a more
 faithful representation of the data that would be passed to a
 production-grade model.
 
+We use the $F_1$-score to find the ``best'' threshold possible, which implies computing the precision and recall.
+However, precision is not defined when there are no positive true labels,
+and recall is not defined when there are no positive predicted labels.
+We could arbitrarily decide to set them to 0 or to 1;
+originally it was 0, but it transpired that even if
+the model could determine that the image was a noPV, it
+would still receive a rating of 0, which seemed unfair.
+On the other hand, after changing it to 1, we were
+dubious as to whether we could really trust the results
+we obtained. Indeed, it would seem easier to predict an
+image as noPV than to try and find the PV, but with this
+choice the two were rewarded the exact same way; it was
+not possible to determine whether the ratings were
+good because of the model, or because there were many
+noPV images in the test set.
+
+Another solution was to compute precision and recall
+as weighted averages, as is done with multi-class
+problems. In this case, we compute the metrics 
+with 1 as the positive class and also with 0 as the
+positive class, and then take a weighted average of
+the two; the weights are the support of each class.
+That way, division-by-zero issues naturally disappear.
+However, this tended to give a disproportionate
+boost to the precision whereas the recall is not as
+affected (in fact, it becomes equal to the accuracy).
+
+Because the computation of the $F_1$-score is unweighted,
+this means that lower threshold values
+
+We computed the metrics for each image in the test set and then computed summary statistics;
+however, concatenating all the images and computing each
+metric on this one ``super-image'' is also an easy
+way to ascertain the performance of our models.
+We collected the results using the latter method in
+\autoref{tbl:test_results}.
 %The size of the validation and test sets is according to the train-validation-test split decided in the
 %beginning, namely 15\% of the total dataset for each.
 
-EXPLAIN HOW THE noPV ARE TREATED (set to 0? set to 1? discarded?)
-Set to 1 
+%EXPLAIN HOW THE noPV ARE TREATED (set to 0? set to 1? discarded?)
+%Set to 1 
 
 \section{Results}
 After selecting appropriate learning rates we choose to train the following models:
@@ -323,21 +370,35 @@ and the model is then applied with that threshold to a test set.
 Various standard classification metrics are computed and collected in \autoref{tbl:test_results}.
 
 % I also want to put the 1st and 3rd quartiles -- maybe I could have it span the 2 columns?
+% \begin{table*}[!ht]
+%     \begin{center}
+%         \begin{tabular}{||c | c c c c c c||} 
+%              \hline
+%              \input{report/res_latex}
+%         \end{tabular}
+%     \end{center}
+%     \caption{Test results for each model, where the metric is applied on the concatenated test set.
+%     The threshold is $\arg\max Q_2(\theta)$.
+%     Results have the form $Q_1$--$\bm{Q_2}$--$Q_3$.
+%     Except for accuracy, the metrics are computed with the weighted average method, the same way that would be done in a
+%     multi-class problem, in order to avoid the
+%     division-by-zero issues.
+%     }
+%     \label{tbl:test_results}
+% \end{table*}
+
+% Remove accuracy and thresholds 
 \begin{table*}[!ht]
     \begin{center}
         \begin{tabular}{||c | c c c c c c||} 
              \hline
-             \input{report/res_latex}
+             \input{report/res_concat}
         \end{tabular}
     \end{center}
-    \caption{Test results for each model.
-        The threshold is $\arg\max f(\theta)$ where $f$ is defined in \autoref{eq:threshold_metric}.
+    \caption{Test results for all models, each with its best threshold according to $\arg\max Q_2(\theta)$.
     }
     \label{tbl:test_results}
 \end{table*}
-
- 
-
 
 \section{Discussion}
 Discussion is done here.
