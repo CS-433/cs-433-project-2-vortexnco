@@ -5,7 +5,8 @@ import sklearn.metrics
 
 from model.unet_model import UNet
 from visualisation import plot_precision_recall_f1
-from pipeline import load_data
+from load_data import *
+
 
 METRICS = {
     "accuracy": sklearn.metrics.accuracy_score,
@@ -89,9 +90,8 @@ def summary_stats(array, axis=0, type="median", lower_bound=None):
         raise NotImplementedError
     return np.stack((lower, mid, upper), axis=axis)
 
+
 ## VALIDATION
-
-
 def precision_recall_fscore(true, pred_probas, thresholds):
     """Compute the precision, recall and F1-score of a prediction,
     for different threshold probabilities.
@@ -166,7 +166,7 @@ def precision_recall_fscore(true, pred_probas, thresholds):
         f1 = 2 * (prec * rec) / (prec + rec)
     f1 = np.nan_to_num(f1, 0)
 
-    return prec, rec, f1
+    return (x.reshape(1, -1) for x in (prec, rec, f1))
 
 
 def find_best_threshold(predictions, labels, n_thresholds, concat, plot):
@@ -196,10 +196,9 @@ def find_best_threshold(predictions, labels, n_thresholds, concat, plot):
     best_thresh : float
         The threshold which maximizes some value
     """
-    # Don't keep 0 or 1 because they are uninteresting
-    # and they cause issues down the line
-    thresholds = np.linspace(0, 1, n_thresholds)[1:-1]
-    n_thresholds = len(thresholds)
+    # Careful when keeping 0 or 1 because they are uninteresting
+    # and they can cause issues down the line
+    thresholds = np.linspace(0, 1, n_thresholds)
     pred_probas = 1 / (1 + np.exp(-predictions))
 
     if concat:
@@ -392,7 +391,7 @@ def main(
         print(new_section)
         print("Validation starting")
         _, _, _, best_threshold = find_best_threshold(
-            val_predictions, val_labels, n_thresholds=101, plot=plot
+            val_predictions, val_labels, n_thresholds=101, concat=concat, plot=plot
         )
         print(f"Found best threshold to be {best_threshold:.4f}")
 
@@ -408,7 +407,6 @@ def main(
         results_file = os.path.join(
             model_dir, "test_{}results.txt".format("concat_" if concat else "")
         )
-        # results = np.column_stack([summary_stats(x, type=summary_type) for x in [f1, precision, recall]])
         if concat:
             results_summary = np.transpose(results)
             print("Results:")
@@ -433,21 +431,21 @@ def main(
 
 
 if __name__ == "__main__":
-    # dir_models = "/home/auguste/allFinalModels/"
-    # dir_data = "/raid/machinelearning_course/data"
-    dir_models = "../stuff/models_data/"
-    dir_data = "../data/data/"
+    dir_models = "/home/auguste/allFinalModels/"
+    dir_data = "/raid/machinelearning_course/data"
+    # dir_models = "../stuff/models_data/"
+    # dir_data = "../data/data/"
 
-    test = ["precision", "recall", "f1", "accuracy", "jaccard"]
+    test = ["precision", "recall", "f1", "jaccard"]
 
-    # for model in os.listdir(dir_models):
-    model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
-    main(
-        model_name=model,
-        from_file=True,  # Should probably be put to a filename
-        to_file=True,
-        validation=True,
-        test=test,
-        concat=True,
-        plot=False,
-    )
+    for model in os.listdir(dir_models):
+    # model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
+        main(
+            model_name=model,
+            from_file=True,  # Should probably be changed to a filename
+            to_file=True,
+            validation=True,
+            test=test,
+            concat=True,
+            plot=False,
+        )
