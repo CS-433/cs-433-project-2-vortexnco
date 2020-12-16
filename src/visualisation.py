@@ -38,14 +38,15 @@ def compare_labels(true_label, predicted_label):
     return result
 
 
-def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
-                        dir_data_test= "../data/test"):
+def show_full_comparisonTestGenerator(
+    model, threshold_prediction=0.9, dir_data_test="../data/test"
+):
     """
     Creates a generator for plots vizualizing the results of the model.
 
-    Parameters
-    ----------
-    model : TYPE
+    Inputs:
+    ========
+    model :
         Model to use.
     threshold_prediction : float, optional
         Threshold to use after the model predicts probabilities. The default is 0.9.
@@ -53,57 +54,58 @@ def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
         Directory of Test data. The default is "../data/test".
 
     Returns:
-
-    -------
+    ========
     None
     """
-    
-    _, _, test_dl =  load_data(
-        prop_noPV_training = 0.0, #dummy value since only used in Train
-        min_rescale_images = 0.6, #dummy value since only used in Train
-        batch_size = 1,
-        dir_data_training = "", #empty strings to avoid creating train Dataloader
-        dir_data_validation = "", #empty string to avoid creating validation DataLoader
-        dir_data_test = dir_data_test,
+    _, _, test_dl = load_data(
+        prop_noPV_training=0.0,  # dummy value since only used in Train
+        min_rescale_images=0.6,  # dummy value since only used in Train
+        batch_size=1,
+        dir_data_training="",  # empty strings to avoid creating train Dataloader
+        dir_data_validation="",  # empty string to avoid creating validation DataLoader
+        dir_data_test=dir_data_test,
     )
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+
     for images, labels in test_dl:
         model.eval()
         with torch.no_grad():
             images = images.to(device, dtype=torch.float32)
             predictions = model(images)
-        
-        #Plotting first image of batch
-        i=0
-        fig, axs = plt.subplots(2,2, figsize = (8,8))
 
-        #Showing Aerial Image
-        image_numpy = images[i].cpu().numpy().transpose((1,2,0))        
-        axs[0,0].imshow(image_numpy)
-        axs[0,0].set_title("Image")
-        
-        #Sgowing True label
+        # Plotting first image of batch
+        i = 0
+        fig, axs = plt.subplots(2, 2, figsize=(8, 8))
+
+        # Showing Aerial Image
+        image_numpy = images[i].cpu().numpy().transpose((1, 2, 0))
+        axs[0, 0].imshow(image_numpy)
+        axs[0, 0].set_title("Image")
+
+        # Sgowing True label
         label_numpy = labels[i].cpu().numpy()
-        axs[0,1].imshow(label_numpy)
-        axs[0,1].set_title("True label")
-        
-        #transforming output of model to probabilities
-        predicted_numpy = np.squeeze(predictions.cpu().numpy()[i])
-        predicted_numpy = 1/(1 + np.exp(-predicted_numpy)) 
-        
-        
-        #Thresholding prediction probabilities to make a decision
-        axs[1,0].imshow(np.where(predicted_numpy>threshold_prediction, 1., 0.))
-        axs[1,0].set_title("Prediction")
-        
+        axs[0, 1].imshow(label_numpy)
+        axs[0, 1].set_title("True label")
 
-        #Comparing label to decision 
-        show_label_comparison(label_numpy, np.where(predicted_numpy>threshold_prediction, 1, 0), axs[1,1])
+        # transforming output of model to probabilities
+        predicted_numpy = np.squeeze(predictions.cpu().numpy()[i])
+        predicted_numpy = 1 / (1 + np.exp(-predicted_numpy))
+
+        # Thresholding prediction probabilities to make a decision
+        axs[1, 0].imshow(np.where(predicted_numpy > threshold_prediction, 1.0, 0.0))
+        axs[1, 0].set_title("Prediction")
+
+        # Comparing label to decision
+        show_label_comparison(
+            label_numpy,
+            np.where(predicted_numpy > threshold_prediction, 1, 0),
+            axs[1, 1],
+        )
         fig.tight_layout()
         fig.show()
         yield
+
 
 def show_label_comparison(true_label, predicted_label, ax):
     """
@@ -187,18 +189,11 @@ def plot_precision_recall_f1(
         plt.text(best_thresh, f1_mid[idx_best], "{:.3f}".format(f1_mid[idx_best]))
         plt.text(best_thresh + 0.05, 0, "{:.3f}".format(best_thresh))
         plt.axvline(x=best_thresh, ymin=0, ymax=1, color="black", linestyle="--")
-        # plt.axvline(x=best_thresh, ymin=0, ymax=f1_mid[idx_best], color="black", linestyle="--")
 
     plt.figure(2)
     ax_prec_rec = plt.axes()
     ax_prec_rec.fill_between(recall_mid, precision_lower, precision_upper, alpha=0.6)
     ax_prec_rec.plot(recall_mid, precision_mid)
-    # Should I use the lower and upper rec??
-    # What's the significance of this statistically?
-    # ax_prec_rec.plot(recall_lower, precision_lower)
-    # ax_prec_rec.plot(recall_upper, precision_upper)
-    # ax_prec_rec.fill_between(recall_lower, precision_lower, precision_mid, alpha=0.6)
-    # ax_prec_rec.fill_between(recall_upper, precision_mid, precision_upper, alpha=0.6)
     plt.grid(True)
     plt.xlabel("Recall")
     plt.ylabel("Precision")
