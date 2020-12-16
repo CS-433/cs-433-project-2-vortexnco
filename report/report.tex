@@ -76,7 +76,7 @@ The dataset used consists of ortho-rectified [**TODO should explain ?**] images 
 
 \subsection{Data labelling}
 %Updated tool labelled images ourselves, show strange example
-We labelled X images using an updated version of the labelling tool based on OpenCV provided by the Solar Energy and Building Physics Laboratory [**TODO should we cite like this ? **]. Each pixel that belongs to a rooftop where there is available space to place solar photovoltaic panels are classified as \emph{PV pixels}, whereas the other pixels are classified as \emph{no-PV pixels}, they do not correspond to rooftop or there are obstacles that do not allow to place any photovoltaic panels on it (e.g. chimney, pipe, windows, etc.).
+We labelled X images using an updated version of an existing labelling tool based on OpenCV~\cite{Castello_2019}. The tool of this paper is used to label solar panels which are usually rectangular, we update it for our task by making it easy to select regions of an image (usually a roof) and then extruding parts of it (usually hyperstructures on the roof making it not suitable as area for solar panels). Each pixel that belongs to a rooftop where there is available space to place solar photovoltaic panels are classified as \emph{PV pixels}, whereas the other pixels are classified as \emph{no-PV pixels}, they do not correspond to rooftop or there are obstacles that do not allow to place any photovoltaic panels on it (e.g. chimney, pipe, windows, etc.).
 
 The labelled images were chosen from a randomized subset of the dataset mentioned above, taken from different tiles (area) of the canton in order to have the most representative variety of rooftop shapes and types (industrial, old town, center town, countryside, etc.). 
 
@@ -220,7 +220,33 @@ the recall corresponds to $\P{\text{Label}=1 \given \text{Pred} = 1}$.
 As such, both are susceptible to become undefined if
 $\#\tl1 = 0$ or $\#\pl1 = 0$, respectively.
 
-Since we have noPV images in the validation set, 
+Since we must have noPV images in the validation and test sets in order to faithfully represent real-world usage,
+these possibilities must be accounted for.
+By default, the precision and recall functions we use
+can catch these errors and arbitrarily set the value to
+0 or to 1.
+
+Setting the value to 0 in case of noPV is not sensible,
+because in this case, even if the model perfectly predicts
+all pixels as 0, both precision and recall will be set to 0
+(hence so will the $F_1$-score).
+However, setting the value to 1 is also suboptimal, because
+then we can't make the difference between a model that
+perfectly predicted where a PV area was, and a model
+that did any prediction on a noPV image.
+In both cases, the $F_1$-score is being influenced artificially in an varying manner.
+
+Another solution was then to compute precision and recall
+as weighted averages, as is done with multi-class
+problems.
+In this case, we compute the metrics 
+with 1 as the positive class and also with 0 as the
+positive class, and then take a weighted average of
+the two; the weights are the support of each class.
+That way, division-by-zero issues naturally disappear.
+However, this tended to give a disproportionate
+boost to the precision whereas the recall is not as
+affected (in fact, it becomes equal to the accuracy).
 % is computed as
 % \begin{equation*}
 %     \text{precision} = \frac{\#\tp}{\#\tl1}
@@ -399,6 +425,13 @@ Various standard classification metrics are computed and collected in \autoref{t
     }
     \label{tbl:test_results}
 \end{table*}
+
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=\columnwidth]{report/images/train_validation_errors.png}
+    \caption{Train and validation errors during training of the best model (6).}
+    \label{fig:train_validation_errors}
+\end{figure}
 
 \section{Discussion}
 Discussion is done here.
