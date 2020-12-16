@@ -9,20 +9,28 @@ from visualisation import plot_precision_recall_f1
 from pipeline import load_data
 
 METRICS = {
-    "accuracy" : sklearn.metrics.accuracy_score,
-    "balanced_accuracy" : sklearn.metrics.balanced_accuracy_score,
-    "average_precision" : sklearn.metrics.average_precision_score,
-    "neg_brier_score" : sklearn.metrics.brier_score_loss,
-    "f1" : sklearn.metrics.f1_score,
-    "f1_weighted" : lambda true, pred: sklearn.metrics.f1_score(true, pred, zero_division=1, average="weighted"),
-    "neg_log_loss" : sklearn.metrics.log_loss,
-    "precision" : sklearn.metrics.precision_score,
-    "precision_weighted" : lambda true, pred: sklearn.metrics.precision_score(true, pred, zero_division=1, average="weighted"),
-    "recall" : sklearn.metrics.recall_score,
-    "recall_weighted" : lambda true, pred: sklearn.metrics.recall_score(true, pred, zero_division=1, average="weighted"),
-    "jaccard" : sklearn.metrics.jaccard_score,
-    "jaccard_weighted" : lambda true, pred: sklearn.metrics.jaccard_score(true, pred, average="weighted"),
-    "roc_auc" : sklearn.metrics.roc_auc_score,
+    "accuracy": sklearn.metrics.accuracy_score,
+    "balanced_accuracy": sklearn.metrics.balanced_accuracy_score,
+    "average_precision": sklearn.metrics.average_precision_score,
+    "neg_brier_score": sklearn.metrics.brier_score_loss,
+    "f1": sklearn.metrics.f1_score,
+    "f1_weighted": lambda true, pred: sklearn.metrics.f1_score(
+        true, pred, zero_division=1, average="weighted"
+    ),
+    "neg_log_loss": sklearn.metrics.log_loss,
+    "precision": sklearn.metrics.precision_score,
+    "precision_weighted": lambda true, pred: sklearn.metrics.precision_score(
+        true, pred, zero_division=1, average="weighted"
+    ),
+    "recall": sklearn.metrics.recall_score,
+    "recall_weighted": lambda true, pred: sklearn.metrics.recall_score(
+        true, pred, zero_division=1, average="weighted"
+    ),
+    "jaccard": sklearn.metrics.jaccard_score,
+    "jaccard_weighted": lambda true, pred: sklearn.metrics.jaccard_score(
+        true, pred, average="weighted"
+    ),
+    "roc_auc": sklearn.metrics.roc_auc_score,
     # "roc_auc_ovr" : sklearn.metrics.roc_auc_score,
     # "roc_auc_ovo" : sklearn.metrics.roc_auc_score,
     # "roc_auc_ovr_weighted" : sklearn.metrics.roc_auc_score,
@@ -30,7 +38,86 @@ METRICS = {
 }
 
 ## VALIDATION
-def find_best_threshold(predictions, labels, n_thresholds, plot=True):
+
+
+def precision_recall_fscore(true, pred_probas, thresholds):
+    """Compute the precision, recall and F1-score of a prediction,
+    for different threshold probabilities.
+
+    Inputs:
+    ========
+    true : ndarray
+        True label (binary array).
+    pred_probas : ndarray
+        Predicted probabilities.
+    thresholds : iterable
+        Thresholds to compute metrics for. Must be between 0 and 1.
+
+    Returns:
+    =========
+    prec, rec, f1 : ndarrays
+        Precision, recall and F1-score for each threshold.
+    """
+    pred = pred_probas.flatten()
+
+    # Sort increasingly
+    sort = np.argsort(pred)
+    true = true.flatten()[sort]
+    pred = pred[sort]
+
+    # For each threshold, find the first index
+    # for which we start predicting 1
+    thresholds_idx = np.searchsorted(pred, thresholds)
+    # Find indices of thresholds for which all are predicted 0
+    limit_idx = np.where(thresholds_idx == len(pred))[0]
+    # Use the indices to make thresholds_idx legal as an index array
+    thresholds_idx[limit_idx] = 0
+    # True positives for each threshold
+    tps = np.cumsum(true[::-1])[::-1][thresholds_idx]
+    # If you never predict 1 you have no true positives
+    n = len(pred.flatten())
+    tps[limit_idx] = 0
+    predicted_1 = n - thresholds_idx
+    actually_1 = tps[0]
+    # predicted_0 = n - predicted_1
+    # actually_0 = n - actually_1
+    # # Positives - True positives
+    # fns = actually_1 - tps
+    # # Negatives - False negatives
+    # tns = actually_0 - fns
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        prec_1 = tps / predicted_1
+    #     prec_0 = tns / predicted_0
+    # prec_1 = np.nan_to_num(prec_1, 0)
+    # prec_0 = np.nan_to_num(prec_0, 0)
+    # prec = (actually_1 * prec_1 + actually_0 * prec_0) / n
+    # Setting to 1 when undefined
+    prec = np.nan_to_num(prec_1, 1)
+    # If you never predict 1 your precision is bad
+    # But I need the precision-recall curve to make sense
+    # (i.e. that precision = 1 when recall = 0)
+    # and the F1-score to be defined
+    # (i.e. that precision and recall aren't both 0)
+    prec[limit_idx] = 1
+    # precision[i] = prec
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rec_1 = tps / actually_1
+    #     rec_0 = tns / actually_0
+    # rec_1 = np.nan_to_num(rec_1, 0)
+    # rec_0 = np.nan_to_num(rec_0, 0)
+    # # The recall weighted by support seems to be the same as the accuracy
+    # rec = (actually_1 * rec_1 + actually_0 * rec_0) / n
+    # Setting to 1 when undefined
+    rec = np.nan_to_num(rec_1, 1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        f1 = 2 * (prec * rec) / (prec + rec)
+    f1 = np.nan_to_num(f1, 0)
+
+    return prec, rec, f1
+
+
+def find_best_threshold(predictions, labels, n_thresholds, concat, plot):
     """Determine the best threshold given validation set and
     visualise results (precision-recall curve and F1-score against thresholds).
     This is based on the sklearn.metrics.precision_recall_curve function
@@ -40,13 +127,15 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     Inputs:
     ========
     predictions : ndarray
-        model predictions on validation set
+        Model predictions on validation set.
     labels : ndarray
-        true labels corresponding to predictions on validation set
+        True labels corresponding to predictions on validation set.
     n_thresholds : int
-        number of thresholds to test for
-    plot : bool, optional
-        whether to plot results or not
+        Number of thresholds to test for.
+    concat : bool
+        Whether to compute each metric once, on the concatenation of the whole validation set.
+    plot : bool
+        Whether to plot results or not.
 
     Returns:
     ========
@@ -61,77 +150,38 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     n_thresholds = len(thresholds)
     pred_probas = 1 / (1 + np.exp(-predictions))
 
-    precision = np.zeros((len(predictions), n_thresholds))
-    recall = np.zeros((len(predictions), n_thresholds))
-    f1_scores = np.zeros((len(predictions), n_thresholds))
-    n = len(pred_probas[0].flatten())
+    if concat:
+        precision, recall, f1_scores = precision_recall_fscore(
+            labels, pred_probas, thresholds
+        )
+    else:
+        precision = np.zeros((len(predictions), n_thresholds))
+        recall = np.zeros((len(predictions), n_thresholds))
+        f1_scores = np.zeros((len(predictions), n_thresholds))
 
-    for i, (true, pred) in enumerate(zip(labels, pred_probas)):
-        pred = pred.flatten()
+        for i, (true, pred) in enumerate(zip(labels, pred_probas)):
+            precision[i], recall[i], f1_scores[i] = precision_recall_fscore(
+                true, pred, thresholds
+            )
 
-        # Sort increasingly
-        sort = np.argsort(pred)
-        true = true.flatten()[sort]
-        pred = pred[sort]
-
-        # For each threshold, find the first index
-        # for which we start predicting 1
-        thresholds_idx = np.searchsorted(pred, thresholds)
-        # Find indices of thresholds for which all are predicted 0
-        limit_idx = np.where(thresholds_idx == len(pred))[0]
-        # Use the indices to make thresholds_idx legal as an index array
-        thresholds_idx[limit_idx] = 0
-        # True positives for each threshold
-        tps = np.cumsum(true[::-1])[::-1][thresholds_idx]
-        # If you never predict 1 you have no true positives
-        tps[limit_idx] = 0
-        predicted_1 = n - thresholds_idx
-        predicted_0 = n - predicted_1
-        actually_1 = tps[0]
-        actually_0 = n - actually_1
-        # Positives - True positives
-        fns = actually_1 - tps
-        # Negatives - False negatives
-        tns = actually_0 - fns
-
-        with np.errstate(divide="ignore", invalid="ignore"):
-            prec_1 = tps / predicted_1
-        #     prec_0 = tns / predicted_0
-        # prec_1 = np.nan_to_num(prec_1, 0)
-        # prec_0 = np.nan_to_num(prec_0, 0)
-        # prec = (actually_1 * prec_1 + actually_0 * prec_0) / n
-        prec = np.nan_to_num(prec_1, 1)
-        # If you never predict 1 your precision is bad
-        # But I need the precision-recall curve to make sense
-        # (i.e. that precision = 1 when recall = 0)
-        # and the F1-score to be defined
-        # (i.e. that precision and recall aren't both 0)
-        prec[limit_idx] = 1
-        precision[i] = prec
-        with np.errstate(divide="ignore", invalid="ignore"):
-            rec_1 = tps / actually_1
-        #     rec_0 = tns / actually_0
-        # rec_1 = np.nan_to_num(rec_1, 0)
-        # rec_0 = np.nan_to_num(rec_0, 0)
-        # # The recall weighted by support seems to be the same as the accuracy
-        # rec = (actually_1 * rec_1 + actually_0 * rec_0) / n
-        rec = np.nan_to_num(rec_1, 1)
-        recall[i] = rec
-        with np.errstate(divide="ignore", invalid="ignore"):
-            f1 = 2 * (prec * rec) / (prec + rec)
-        f1_scores[i] = np.nan_to_num(f1, 0)
-
+    # The lower bound doesn't really matter when there is only one number
+    # If you use the mean that's another story
     summary_type = "median"
-    lower_bound = 25
-    prec_summary = summary_stats(precision, type=summary_type, lower_bound=lower_bound)
-    rec_summary = summary_stats(recall, type=summary_type, lower_bound=lower_bound)
-    f1_summary = summary_stats(f1_scores, type=summary_type, lower_bound=lower_bound)
+    lower_bound = 50
+
+    prec_summary, rec_summary, f1_summary = (
+        summary_stats(
+            metric, type=summary_type, lower_bound=lower_bound
+        )
+        for metric in (precision, recall, f1_scores)
+    )
 
     # Estimating what the threshold should be set to
     f1_lower, f1_mid, f1_upper = (row for row in f1_summary)
     # This measure penalises uncertain choices (maximize (mean - spread))
-    idx_best = np.argmax(f1_mid - (f1_upper - f1_lower))
-    # idx_best = np.argmax(f1_mid)
+    # But it can lose its meaning when precision and recall are set arbitrarily to 0 or 1
+    # idx_best = np.argmax(f1_mid - (f1_upper - f1_lower))
+    idx_best = np.argmax(f1_mid)
     if plot:
         plot_precision_recall_f1(
             thresholds, prec_summary, rec_summary, f1_summary, idx_best=idx_best
@@ -169,7 +219,6 @@ def test_model(test_predictions, test_labels, threshold, concat, *args):
     scorings = [METRICS[s] for s in args]
     pred_probas = 1 / (1 + np.exp(-test_predictions))
     test_predictions = np.where(pred_probas > threshold, 1, 0)
-
 
     if concat:
         results = np.zeros((1, len(args)))
@@ -299,10 +348,14 @@ def main(
         print(new_section)
         print("Testing starting with metrics:")
         print(", ".join(test))
-        results = test_model(test_predictions, test_labels, best_threshold, concat, *test)
+        results = test_model(
+            test_predictions, test_labels, best_threshold, concat, *test
+        )
         print(results)
         summary_type = "median"
-        results_file = os.path.join(model_dir, "test_{}results.txt".format('concat_' if concat else ''))
+        results_file = os.path.join(
+            model_dir, "test_{}results.txt".format("concat_" if concat else "")
+        )
         # results = np.column_stack([summary_stats(x, type=summary_type) for x in [f1, precision, recall]])
         if concat:
             results_summary = np.transpose(results)
