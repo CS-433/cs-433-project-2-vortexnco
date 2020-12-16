@@ -38,8 +38,6 @@ def compare_labels(true_label, predicted_label):
     return result
 
 def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
-                        dir_data_training = "../data/train",
-                        dir_data_validation = "../data/validation",
                         dir_data_test= "../data/test"):
     """
     Creates a generator for plots vizualizing the results of the model.
@@ -50,11 +48,7 @@ def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
         Model to use.
     threshold_prediction : float, optional
         Threshold to use after the model predicts probabilities. The default is 0.9.
-    dir_data_training : TYPE, optional
-        Directory of Train data. The default is "../data/train".
-    dir_data_validation : TYPE, optional
-        Directory of Validation data. The default is "../data/validation".
-    dir_data_test : TYPE, optional
+    dir_data_test : str, optional
         Directory of Test data. The default is "../data/test".
 
     Returns
@@ -62,12 +56,13 @@ def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
     None.
 
     """
+    
     _, _, test_dl =  load_data(
         prop_noPV_training = 0.0, #dummy value since only used in Train
         min_rescale_images = 0.6, #dummy value since only used in Train
         batch_size = 1,
-        dir_data_training = dir_data_training,
-        dir_data_validation = dir_data_validation,
+        dir_data_training = "", #empty strings to avoid creating train Dataloader
+        dir_data_validation = "", #empty string to avoid creating validation DataLoader
         dir_data_test = dir_data_test,
     )
     
