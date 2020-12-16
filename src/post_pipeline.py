@@ -13,11 +13,15 @@ METRICS = {
     "balanced_accuracy" : sklearn.metrics.balanced_accuracy_score,
     "average_precision" : sklearn.metrics.average_precision_score,
     "neg_brier_score" : sklearn.metrics.brier_score_loss,
-    "f1" : lambda true, pred: sklearn.metrics.f1_score(true, pred, zero_division=1, average="weighted"),
+    "f1" : sklearn.metrics.f1_score,
+    "f1_weighted" : lambda true, pred: sklearn.metrics.f1_score(true, pred, zero_division=1, average="weighted"),
     "neg_log_loss" : sklearn.metrics.log_loss,
-    "precision" : lambda true, pred: sklearn.metrics.precision_score(true, pred, zero_division=1, average="weighted"),
-    "recall" : lambda true, pred: sklearn.metrics.recall_score(true, pred, zero_division=1, average="weighted"),
-    "jaccard" : lambda true, pred: sklearn.metrics.jaccard_score(true, pred, average="weighted"),
+    "precision" : sklearn.metrics.precision_score,
+    "precision_weighted" : lambda true, pred: sklearn.metrics.precision_score(true, pred, zero_division=1, average="weighted"),
+    "recall" : sklearn.metrics.recall_score,
+    "recall_weighted" : lambda true, pred: sklearn.metrics.recall_score(true, pred, zero_division=1, average="weighted"),
+    "jaccard" : sklearn.metrics.jaccard_score,
+    "jaccard_weighted" : lambda true, pred: sklearn.metrics.jaccard_score(true, pred, average="weighted"),
     "roc_auc" : sklearn.metrics.roc_auc_score,
     # "roc_auc_ovr" : sklearn.metrics.roc_auc_score,
     # "roc_auc_ovo" : sklearn.metrics.roc_auc_score,
@@ -53,22 +57,13 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     """
     # Don't keep 0 or 1 because they are uninteresting
     # and they cause issues down the line
-    thresholds = np.linspace(0, 1, n_thresholds)[1:]
-    n_thresholds -= 1
+    thresholds = np.linspace(0, 1, n_thresholds)[1:-1]
+    n_thresholds = len(thresholds)
     pred_probas = 1 / (1 + np.exp(-predictions))
 
     precision = np.zeros((len(predictions), n_thresholds))
     recall = np.zeros((len(predictions), n_thresholds))
     f1_scores = np.zeros((len(predictions), n_thresholds))
-
-   # for i, (true, pred) in enumerate(zip(labels, pred_probas)):
-   #     true = true.flatten()
-   #     pred = pred.flatten()
-   #     for j, thresh in enumerate(thresholds):
-   #         pred = np.where(pred > thresh, 1, 0)
-   #         # When image has no PV the score should be high if the model predicts all 0's
-   #         #print(sklearn.metrics.precision_recall_fscore_support(true, pred, zero_division=1))
-   #         precision[i, j], recall[i, j], f1_scores[i, j], _ = sklearn.metrics.precision_recall_fscore_support(true, pred, average="binary", zero_division=1)
     n = len(pred_probas[0].flatten())
 
     for i, (true, pred) in enumerate(zip(labels, pred_probas)):
@@ -131,7 +126,6 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     prec_summary = summary_stats(precision, type=summary_type, lower_bound=lower_bound)
     rec_summary = summary_stats(recall, type=summary_type, lower_bound=lower_bound)
     f1_summary = summary_stats(f1_scores, type=summary_type, lower_bound=lower_bound)
-    print(f1_summary)
 
     # Estimating what the threshold should be set to
     f1_lower, f1_mid, f1_upper = (row for row in f1_summary)
@@ -147,7 +141,7 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
 
 
 ## TESTING (once threshold is chosen)
-def test_model(test_predictions, test_labels, threshold, *args):
+def test_model(test_predictions, test_labels, threshold, concat, *args):
     """Returns evaluation measures over a test set.
 
     Inputs:
@@ -159,6 +153,8 @@ def test_model(test_predictions, test_labels, threshold, *args):
         Array of ints containing the true labels for each image in the test set.
     threshold : float
         Threshold over which predictions should be decided as 1.
+    concat : bool
+        Whether to compute each metric once, on the concatenation of the whole test set.
     args : strings
         Metrics to use for testing: the list of accepted strings can be found at
         https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter.
@@ -170,16 +166,26 @@ def test_model(test_predictions, test_labels, threshold, *args):
         Test results; rows correspond to datapoints
         and columns correspond to metrics (in the order they were passed)
     """
-    results = np.zeros((len(test_predictions), len(args)))
     scorings = [METRICS[s] for s in args]
-
     pred_probas = 1 / (1 + np.exp(-test_predictions))
     test_predictions = np.where(pred_probas > threshold, 1, 0)
-    for i, (true, pred) in enumerate(zip(test_labels, test_predictions)):
-        true = true.flatten()
-        pred = pred.flatten()
-        for j, scoring in enumerate(scorings):
-            results[i, j] = scoring(true, pred)
+
+
+    if concat:
+        results = np.zeros((1, len(args)))
+        true = test_labels.flatten()
+        pred = test_predictions.flatten()
+        for i, scoring in enumerate(scorings):
+            results[0, i] = scoring(true, pred)
+
+    else:
+        results = np.zeros((len(test_predictions), len(args)))
+        for i, (true, pred) in enumerate(zip(test_labels, test_predictions)):
+            # Could probably flatten the two at the beginning, like I do in concat
+            true = true.flatten()
+            pred = pred.flatten()
+            for j, scoring in enumerate(scorings):
+                results[i, j] = scoring(true, pred)
 
     return results
 
@@ -190,6 +196,7 @@ def main(
     to_file=False,
     validation=True,
     test=["precision", "recall", "f1", "accuracy", "jaccard"],
+    concat=False,
     plot=True,
 ):
     """
@@ -214,6 +221,8 @@ def main(
         Which metrics to use for testing (evaluate the model with a given threshold).
         The results are stored in a txt file called "test_results.txt" in the model directory.
         If empty then testing is skipped.
+    concat : bool
+        During testing, whether to compute each metric once, on the concatenation of the whole test set.
     plot : bool
         Whether to show plots during run.
     """
@@ -259,7 +268,6 @@ def main(
             val_predictions = model(val_images)
             test_predictions = model(test_images)
             # Convert to numpy arrays for computing
-            #print(np.squeeze(val_predictions.cpu().numpy()).shape)
             val_predictions = np.squeeze(val_predictions.cpu().numpy())
             val_labels = np.squeeze(val_labels.cpu().numpy())
             test_predictions = np.squeeze(test_predictions.cpu().numpy())
@@ -291,14 +299,18 @@ def main(
         print(new_section)
         print("Testing starting with metrics:")
         print(", ".join(test))
-        results = test_model(test_predictions, test_labels, best_threshold, *test)
-        #print(results)
+        results = test_model(test_predictions, test_labels, best_threshold, concat, *test)
+        print(results)
         summary_type = "median"
-        results_file = os.path.join(model_dir, "test_results.txt")
+        results_file = os.path.join(model_dir, "test_{}results.txt".format('concat_' if concat else ''))
         # results = np.column_stack([summary_stats(x, type=summary_type) for x in [f1, precision, recall]])
-        results_summary = np.transpose(summary_stats(results, type=summary_type))
-        print(f"Summary statistics are based on the {summary_type}")
-        print("Results (lower, mid-point, upper):")
+        if concat:
+            results_summary = np.transpose(results)
+            print("Results:")
+        else:
+            results_summary = np.transpose(summary_stats(results, type=summary_type))
+            print(f"Summary statistics are based on the {summary_type}")
+            print("Results (lower, mid-point, upper):")
         print(f"\tBest threshold = {best_threshold:.4f}")
         for i, measure in enumerate(test):
             print("\t{}: {}".format(measure, results_summary[i, :]))
@@ -307,8 +319,9 @@ def main(
         np.savetxt(
             results_file,
             results_summary,
+            fmt="%.4f",
             delimiter=" ",
-            header=f"Threshold: {best_threshold}\n{'  '.join(test)}",
+            header=f"Threshold: {best_threshold:.3f}\n{'  '.join(test)}",
         )
 
     print("\n")
@@ -322,13 +335,14 @@ if __name__ == "__main__":
 
     test = ["precision", "recall", "f1", "accuracy", "jaccard"]
 
-    for model in os.listdir(dir_models):
-    #model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
-        main(
-            model_name=model,
-            from_file=True,  # Should probably be put to a filename
-            to_file=True,
-            validation=True,
-            test=test,
-            plot=True,
-        )
+    # for model in os.listdir(dir_models):
+    model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
+    main(
+        model_name=model,
+        from_file=True,  # Should probably be put to a filename
+        to_file=True,
+        validation=True,
+        test=test,
+        concat=True,
+        plot=False,
+    )
