@@ -33,6 +33,14 @@
 \hypersetup{colorlinks=true,citecolor=blue,linkcolor=,urlcolor=links}
 
 
+\newcommand\tl[1]{\{\text{Label} = #1\}}
+\newcommand\pl[1]{\{\text{Pred} = #1\}}
+\newcommand\tp{\{\text{Pred} = 1 \cap \text{Label} = 1\}}
+\newcommand\fp{\{\text{Pred} = 1 \cap \text{Label} = 0\}}
+\newcommand\tn{\{\text{Pred} = 0 \cap \text{Label} = 0\}}
+\newcommand\fn{\{\text{Pred} = 0 \cap \text{Label} = 1\}}
+
+
 \begin{document}
 \title{{\LARGE Automatic detection of available area for rooftop solar panel installations}\vspace{-3mm}}    
 
@@ -192,6 +200,7 @@ Then, we compute order statistics (first, second and third quartiles) and find t
 \begin{equation} \label{eq:threshold_metric}
     f(\theta) = Q_2(\theta) - (Q_3(\theta) - Q_1(\theta))
 \end{equation}
+where $Q_i$ is the $i$\textsuperscript{th} quartile.
 Our reasoning is that while the median $F_1$-score
 should be high, we should also prioritize
 values for which we are more certain of the ``true'' $F_1$-score.
@@ -199,7 +208,41 @@ values for which we are more certain of the ``true'' $F_1$-score.
 Once the best threshold is found, we use this to produce
 the final model; we apply this on our test set and compute
 standard classification metrics for each prediction.
-% Describe the metrics here?
+
+
+As a reminder, the precision of the prediction is computed as
+\begin{equation*}
+    \text{precision} = \frac{\#\tp}{\#\tl1}
+\end{equation*}
+and the recall as
+\begin{equation*}
+    \text{recall} = \frac{\#\tp}{\#\pl1},
+\end{equation*}
+where $\tl{i}$ corresponds to the set of pixels classified as $i$ is the ground-truth label and 
+$\pl{i}$ corresponds to the set of pixels classified as 1 is the predicted label.
+
+The $F_1$-score is computed as 
+\begin{equation*}
+    F_1 = 2 \times \frac{\text{precision} \times \text{recall}}{
+\text{precision} + \text{recall}}
+\end{equation*}
+
+Additionally, we compute the accuracy as
+\begin{align*}
+    \text{accuracy} = \\
+    \frac{\#\tp + \#\tn}{\#\{\text{All}\}}
+\end{align*}
+and the Jaccard loss or intersection-over-union (IoU) as
+\begin{equation*}
+    \text{IoU} = \frac{\#\tp}{\#\{\text{Pred} = 1 \cup \text{Label} = 1\}}.
+\end{equation*}
+
+The way we treat images that are noPV is quite important for
+measuring the performance of a model.
+Indeed, a number of our models have been trained with few or no
+noPV images, whereas the validation and test sets are a more
+faithful representation of the data that would be passed to a
+production-grade model.
 
 %The size of the validation and test sets is according to the train-validation-test split decided in the
 %beginning, namely 15\% of the total dataset for each.
@@ -270,7 +313,9 @@ After selecting appropriate learning rates we choose to train the following mode
 \end{center}
 We write two values for the learning rate, when we use learning rate rescheduling. 
 
-We notice that rescheduling the learning rate during the training only once after 50 epochs gives the best results. We also notice that when rescheduling, we need to shorten the training to 80 epochs to avoid overfitting, whereas with a constant learning rate we train for 100 epochs to have the best results before overfitting.
+We notice that rescheduling the learning rate during the training only once after 50 epochs gives the best results.
+We also notice that when rescheduling, we need to shorten the training to 80 epochs to avoid overfitting,
+whereas with a constant learning rate we train for 100 epochs to have the best results before overfitting.
 
 % Better in methods or results? 
 Each model is run on a validation set to perform a grid-search of the best threshold,
@@ -286,71 +331,11 @@ Various standard classification metrics are computed and collected in \autoref{t
         \end{tabular}
     \end{center}
     \caption{Test results for each model.
-    The threshold is $\arg\max f(\theta)$ where $f$ is defined in \autoref{eq:threshold_metric}.
-    THESE ARE RESULTS FOR THE PREVIOUS MODELS}
+        The threshold is $\arg\max f(\theta)$ where $f$ is defined in \autoref{eq:threshold_metric}.
+    }
     \label{tbl:test_results}
 \end{table*}
-\begin{table*}[!ht]
-    \begin{center}
-        \begin{tabular}{||c | c c c c||} 
-            \hline
-            Model
-            & Threshold
-            & Precision
-            & Recall
-            & $F_1$-score
-            \\ [0.5ex] 
-            \hline\hline
-            1
-            & 0.866
-            & 0.4414--\textbf{0.7533}--0.9160
-            & 0.6365--\textbf{0.8026}--0.8920
-            & 0.5163--\textbf{0.7487}--0.8507
-            \\ \hline
-            1bis
-            & 0.850
-            & 0.7211--\textbf{0.8266}--0.9171
-            & 0.8193--\textbf{0.9248}--0.9677
-            & 0.7569--\textbf{0.8622}--0.9268
-            \\ \hline
-            2
-            & 0.778
-            & 0.7193--\textbf{0.8543}--0.9162
-            & 0.7553--\textbf{0.8931}--0.9490
-            & 0.7423--\textbf{0.8406}--0.9095
-            \\ \hline
-            3
-            & 0.758
-            & 0.6680--\textbf{0.7667}--0.8670
-            & 0.7691--\textbf{0.8989}--0.9602
-            & 0.7095--\textbf{0.8194}--0.8923
-            \\ \hline
-            4
-            & 1.000
-            & 0.0000--\textbf{0.0000}--0.0000
-            & 0.0000--\textbf{0.0000}--0.0000
-            & 0.0000--\textbf{0.0000}--0.0000
-            \\ \hline
-            5
-            & 0.412
-            & 0.7099--\textbf{0.8537}--0.9126
-            & 0.7281--\textbf{0.8624}--0.9437
-            & 0.7197--\textbf{0.8412}--0.8944
-            \\ \hline
-            6
-            & 0.506
-            & 0.6277--\textbf{0.7720}--0.8679
-            & 0.5241--\textbf{0.7859}--0.9065
-            & 0.5860--\textbf{0.7596}--0.8361
-            \\ \hline
-        \end{tabular}
-    \end{center}
-    \caption{Test results for each model.
-    The threshold is $\arg\max f(\theta)$ where $f$ is defined in \autoref{eq:threshold_metric}.
-    THESE ARE RESULTS FOR THE PREVIOUS MODELS}
-    \label{tbl:test_results}
-\end{table*}
-  
+
  
 
 
