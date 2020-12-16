@@ -132,7 +132,8 @@ def show_label_comparison(true_label, predicted_label, ax):
         comparison_rgb[i, j, :] = map_rgb[comparison[i, j]]
 
     # Plot the array
-    plt.imshow(comparison_rgb)
+    ax.imshow(comparison_rgb)
+    ax.set_title("Prediction vs True label")
     TP = mpatches.Patch(color="green", label="TP")
     TN = mpatches.Patch(color="black", label="TN")
     FP = mpatches.Patch(color="red", label="FP")
