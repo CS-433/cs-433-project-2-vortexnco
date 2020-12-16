@@ -1,4 +1,14 @@
-\documentclass[10pt,conference,compsocconf]{IEEEtran}
+\documentclass[10pt,conference]{IEEEtran}
+
+% Font
+\usepackage{lmodern}
+%\usepackage[T1]{fontenc}
+
+\usepackage{bbm}
+\usepackage{mathtools}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{amssymb}
 
 \usepackage{hyperref}
 \usepackage{graphicx}	% For figure environment
@@ -18,8 +28,6 @@
 \usepackage{ragged2e}  % for \justifying
 \usepackage{etoolbox}
 \apptocmd{\thebibliography}{\justifying}{}{}
-\usepackage{natbib} 
-\bibliographystyle{plainnat}
 % links in blue
 \definecolor{links}{HTML}{2A1B81}
 \hypersetup{colorlinks=true,citecolor=blue,linkcolor=,urlcolor=links}
@@ -29,49 +37,331 @@
 \title{{\LARGE Automatic detection of available area for rooftop solar panel installations}\vspace{-3mm}}    
 
 \author{
-  Alexander APOSTOLOV (alexander.apostolov@epfl.ch)\\
-  Auguste BAUM (auguste.baum@epfl.ch)\\
-  Ghali CHRAIBI (ghali.chraibi@epfl.ch)\\
+  Alexander \textsc{Apostolov} (\texttt{alexander.apostolov@epfl.ch})\\
+  Auguste \textsc{Baum} (\texttt{auguste.baum@epfl.ch})\\
+  Ghali \textsc{Chraibi} (\texttt{ghali.chraibi@epfl.ch})\\
   \\
-  Supervisor: Roberto Castello (roberto.castello@epfl.ch)\\ EPFL Laboratory of Solar Energy and Building Physics\\
+  Supervisor: Roberto \textsc{Castello} (\texttt{roberto.castello@epfl.ch})\\ EPFL Laboratory of Solar Energy and Building Physics\\
   \\
   \textit{CS-433 Machine Learning --- December 2020, EPFL, Switzerland}
 }
 \maketitle
 
 \begin{abstract}
-  In this report we propose and analyze a neural network for automatic detection of available rooftop solar panel installations on aerial images. We focus on tuning the network and on analyzing methods to use its probabilistic outcome to make decisions. 
+%TODO explain why it is important an that we are the first ones to do it
+%Say we also labelled
+  In this report we propose and analyze a neural network for automatic detection of available rooftop solar panel installations on aerial images. We focus on tuning the network and on analyzing methods to use its outcome to make decisions. 
 \end{abstract}
 
 \section{Introduction}
-Some cool intro.
+%TODO change name
+\subsection{Importance of the task}
+
+\subsection{Data}
+The dataset used consists of ortho-rectified [**TODO should explain ?**] images of Geneva canton, Switzerland provided by the Swiss Federal Office of Topography. The images are split in tiles corresponding to different region of the canton. Images are $250 \times 250$ pixels, RGB arrays saved in png format. Each pixel correspond to $0.25 \times 0.25 \text{ m}^2$.
+
 
 \section{Models and Methods}
 
+\subsection{Data labelling}
+%Updated tool labelled images ourselves, show strange example
+We labelled X images using an updated version of the labelling tool based on OpenCV provided by the Solar Energy and Building Physics Laboratory [**TODO should we cite like this ? **]. Each pixel that belongs to a rooftop where there is available space to place solar photovoltaic panels are classified as \emph{PV pixels}, whereas the other pixels are classified as \emph{no-PV pixels}, they do not correspond to rooftop or there are obstacles that do not allow to place any photovoltaic panels on it (e.g. chimney, pipe, windows, etc.).
+
+The labelled images were chosen from a randomized subset of the dataset mentioned above, taken from different tiles (area) of the canton in order to have the most representative variety of rooftop shapes and types (industrial, old town, center town, countryside, etc.). 
+
+\subsection{Data preprocessing}
+
+\subsubsection{PV images vs. no-PV images}
+In this paper, we distinguish PV images that contain at least some PV pixels from no-PV images that contain only no-PV pixels. We separate images in different folders as we want to manipulate precisely with how much no-PV images we train our model. We suppose it can have an impact for the robustness of our model, reinforcing the rejection of false positives.  
+
+\subsubsection{Data augmentation}
+As we don’t have a lot of samples, we apply a random transformation on each sample (image and label) to artificially enlarge our dataset. The transformation is composed of :  
+\begin{itemize}
+	\item a random square crop which takes at least 60\% of the sample and is then resized to the size of the original sample
+	\item a horizontal flip of the sample which happens with probability 0.5
+\end{itemize}
+  
+\subsubsection{Training, validation, test split}
+We split the dataset into a train, validation and test set in the following proportion 70\%/15\%/15\%.
+
+The transformation mentioned above is only applied to the training set as we want to test our models on the original distribution. For the same reason, we use the original ratio of PV images / no-PV images for the validation set and the test set and alter this ration only when training the model.
+
 \subsection{U-Net}
 Computer vision tasks are commonly tackled using convolutional networks. 
-%TODO explain what a convolution is
-Here we propose to use a special convolutional network called a U-Net~\cite{ronneberger2015unet} introduced in 2015 for image segmentation for biomedical imaging. We choose to use this model as it can yield state-of-the-art results with only few images. The U-net as shown in \autoref{} consists of two parts, the contracting and the expanding path. The first one is used to detect features on an image and the latter to find the locality of these features in the original space. 
+Here we propose to use a special convolutional network called a \textbf{U-Net},~\cite{ronneberger2015unet}
+introduced in 2015 for image segmentation in biomedical imaging.
+We choose to use this model as it can yield state-of-the-art results with only few images.
+The U-Net as shown in \autoref{fig:UNetarchitecture} consists of two parts,
+the contracting and the expanding path.
+% Pas sur de comprendre cette phrase
+The former is used to \textit{detect features} on an image
+and the latter to \textit{find the locality} of these features in the original space.
 
-\subsection{Loss}
+The contracting path we use consists of 5 stages where we apply two $3 \times 3$ convolutions padded by 1 pixel on each side,
+each followed by a batch normalization layer and a rectified linear unit.
+% Beaucoup de fois "stage"
+The number of channels per stage after the first convolution of the stage remains constant throughout the stage.
+We use the same number of channels as described in \autoref{fig:UNetarchitecture}, namely 64, 128, 256, 512 and 1024 for each stage of the contracting path. 
+Stages in the contracting path are separated by a $2 \times 2$ max-pooling layer with a stride of 2. 
+
+The expanding path we use consists of 4 stages starting by an upsampling by a factor of 2 and a $2 \times 2$ convolution to halve the number of channels,
+a copy of the feature map in the corresponding stage of the contracting path is concatenated and then $3 \times 3$ convolutions padded by 1 pixel on each side are applied,
+each followed by a batch normalization layer and a rectified linear unit.
+The number of channels per stage remains constant after the second convolution at any given stage.
+We use the same number of channels per stage as in \autoref{fig:UNetarchitecture}, namely 512, 256, 128 and 64.
+
+The model terminates by a $1 \times 1$ convolution to a feature map with only one channel.
+From this output we can compute, for each pixel, the probability that it represents an area that is available for a solar panel.
+
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=\columnwidth]{report/images/UNet.png}
+    \caption{
+        U-Net example as described in the original paper~\cite{ronneberger2015unet}.
+        Each blue box corresponds to a multi-channel feature map; the number of channels is found on top of the box, and the dimensions are at the lower left edge of the box.
+        White boxes represent copied feature maps.
+        The arrows denote the different operations.
+    }
+    \label{fig:UNetarchitecture}
+\end{figure}
+
+\subsection{Loss}\label{loss}
+Our model has to classify each pixel into 2 classes, either the area is available for a rooftop solar panel or not. We try the following three losses:
+\begin{itemize}
+    \item Binary cross entropy (BCE)
+    \item Weighted binary cross entropy (wBCE)
+    \item L1 loss
+\end{itemize}
+Because the U-Net outputs an arbitrary value in $\mathbb{R}$ for each pixel, we apply a sigmoid layer before computing the loss.
+
+The weighted binary cross entropy can be used when there is a significant class imbalance, which is indeed the case here:
+most pixels are not available for rooftop solar panels. 
+The formula for this loss is:
+\begin{equation*}
+    %L = \frac{1}{N} \sum_{n=1}^N l_n, \\
+    L = \frac{1}{N} \sum_{n=1}^N  [py_n \log(\sigma(x_n))
+        + (1-y_n) \log(1-\sigma(x_n))],
+    %l_n = - [py_n \log(\sigma(x_n))
+        %+ (1-y_n) \log(1-\sigma(x_n))]
+\end{equation*}
+where $x_n$ and $y_n$ are respectively the output of the model and the true class (0 or 1) for pixel $n$,
+and $p$ is the weight given to the positive class. 
+Setting $p>1$ increases the recall, whereas $p<1$ increases the precision.
+As described in the documentation of PyTorch we set this weight as
+% $\frac{\text{\#negative pixels}}{\text{\#positive pixels}}$
+$\frac{\mathrm{support}(0)}{\mathrm{support}(1)}$
+in the dataset.
+
 
 \subsection{Training}
-Example of citing a paper: Adam~\citep{kingma2014adam}
+We train the model with different parameters and choose the best combination which has the best results on the validation set. We vary the following parameters:
 
-\subsection{}
+\subsubsection{Optimizer}
+We decide to try Adam~\cite{kingma2014adam} and Stochastic Gradient Descent (SGD) to train the U-Net.
+
+\subsubsection{Effect of using noPV images during training}
+We try using different amounts of noPV images during training. We think that using too little might make for a model which doesn't generalize well, while using too much might bias the model. We measure the amount of noPV images by considering the percentage of noPV images compared to PV images in the train set. The percentageswe consider are $0\%, 25\% \text{ and } 50\%$.
+
+\subsubsection{Loss}
+We use the three losses mentioned in \autoref{loss}. For the weighted cross entropy loss we use a different weight based on the percentage of noPV images we use in the train set. We compute the following weight using the formula from \autoref{loss}.
+\begin{center}
+    \begin{tabular}{||c | c||} 
+        \hline
+        Percentage noPV & Weight for wBCE\\ [0.5ex] 
+        \hline\hline
+        $0\%$ & $5.13$ \\
+        \hline
+        $25\%$ & $6.46$ \\
+        \hline
+        $50\%$ & $8.10$ \\
+       % [1ex] 
+        \hline
+    \end{tabular}
+\end{center}
+
+\subsubsection{Learning rate scheduling}
+We try different constant values of the learning rate of the optimizer. However, small values tend to reach a better minimum of the loss function but very slowly, while big values are faster but don't guarantee a good convergence. We propose to use a learning rate scheduler to combine the best of both. We start training with a larger learning rate and decrease it during training.
+
+\subsection{Tuning threshold on probability after training model}
+Since the model outputs weights (real numbers in all of $\mathbb{R}$),
+we use a sigmoid to transform the weights into numbers in $[0,1]$.
+Once this is done, we still need to find the best decision boundary---the threshold probability $\theta$ over which a pixel is decided to be available for PV.
+For that we perform a grid-search over thresholds, computing the $F_1$-score over our validation set
+for each threshold.
+Then, we compute order statistics (first, second and third quartiles) and find the threshold that maximizes the following metric:
+\begin{equation} \label{eq:threshold_metric}
+    f(\theta) = Q_2(\theta) - (Q_3(\theta) - Q_1(\theta))
+\end{equation}
+Our reasoning is that while the median $F_1$-score
+should be high, we should also prioritize
+values for which we are more certain of the ``true'' $F_1$-score.
+
+Once the best threshold is found, we use this to produce
+the final model; we apply this on our test set and compute
+standard classification metrics for each prediction.
+% Describe the metrics here?
+
+%The size of the validation and test sets is according to the train-validation-test split decided in the
+%beginning, namely 15\% of the total dataset for each.
+
+EXPLAIN HOW THE noPV ARE TREATED (set to 0? set to 1? discarded?)
+Set to 1 
 
 \section{Results}
-Results are shown here.
+After selecting appropriate learning rates we choose to train the following models:
+
+\begin{center}
+    \begin{tabular}{||c | c  | c | c | c ||} 
+        \hline
+        $N^o$ & Optimizer & $\%$noPV & Learning rate & Loss \\ [0.5ex] 
+        \hline\hline
+        1 & ADAM & $0\% $ & $10^{-3}$ & wBCE \\
+        \hline
+        2 & ADAM & $0\% $ & $10^{-4}$ & wBCE \\
+        \hline
+        3 & ADAM & $0\% $ & $10^{-3}$ and $10^{-4}$ & wBCE \\
+        \hline
+        4 & ADAM & $25\% $ & $10^{-3}$  & wBCE \\
+        \hline
+        5 & ADAM & $25\% $ & $10^{-4}$ & wBCE \\
+        \hline
+        6 & ADAM & $25\% $ & $10^{-3}$ and $10^{-4}$ & wBCE \\
+        \hline
+        7 & ADAM & $50\% $ & $10^{-3}$ & wBCE \\
+        \hline
+        8 & ADAM & $50\% $ & $10^{-4}$ & wBCE \\
+        \hline
+        9 & ADAM & $50\% $ & $10^{-3}$ and $10^{-4}$ & wBCE \\
+        \hline
+        10 & SGD & $0\% $ & $10^{-3}$ & wBCE \\
+        \hline
+        11 & SGD & $0\% $ & $10^{-2}$ & wBCE \\
+        \hline
+        12 & SGD & $0\% $ & $10^{-2}$ and $10^{-3}$ & wBCE \\
+        \hline
+        13 & SGD & $25\% $ & $10^{-3}$ & wBCE \\
+        \hline
+        14 & SGD & $25\% $ & $10^{-2}$ & wBCE \\
+        \hline
+        15 & SGD & $25\% $ & $10^{-2}$ then $10^{-3}$ & wBCE \\
+        \hline
+        16 & SGD & $50\% $ & $10^{-3}$ & wBCE \\
+        \hline
+        17 & SGD & $50\% $ & $10^{-2}$ & wBCE \\
+        \hline
+        18 & SGD & $50\% $ & $10^{-2}$ and $10^{-3}$ & wBCE \\
+        \hline
+        19 & ADAM & $0\% $ & $10^{-3}$ and $10^{-4}$ & BCE \\
+        \hline
+        20 & ADAM & $25\% $ & $10^{-3}$ and $10^{-4}$ & BCE \\
+        \hline
+        21 & ADAM & $50\% $ & $10^{-3}$ and $10^{-4}$ & BCE \\
+        \hline
+        22 & ADAM & $0\% $ & $10^{-3}$ and $10^{-4}$ & L1 \\
+        \hline
+        23 & ADAM & $25\% $ & $10^{-3}$ and $10^{-4}$ & L1 \\
+        \hline
+        24 & ADAM & $50\% $ & $10^{-3}$ and $10^{-4}$ & L1 \\
+        \hline
+        
+       % [1ex] 
+        \hline
+    \end{tabular}
+\end{center}
+We write two values for the learning rate, when we use learning rate rescheduling. 
+
+We notice that rescheduling the learning rate during the training only once after 50 epochs gives the best results. We also notice that when rescheduling, we need to shorten the training to 80 epochs to avoid overfitting, whereas with a constant learning rate we train for 100 epochs to have the best results before overfitting.
+
+% Better in methods or results? 
+Each model is run on a validation set to perform a grid-search of the best threshold,
+and the model is then applied with that threshold to a test set.
+Various standard classification metrics are computed and collected in \autoref{tbl:test_results}.
+
+% I also want to put the 1st and 3rd quartiles -- maybe I could have it span the 2 columns?
+\begin{table*}[!ht]
+    \begin{center}
+        \begin{tabular}{||c | c c c c||} 
+             \input{report/res_latex}
+        \end{tabular}
+    \end{center}
+    \caption{Test results for each model.
+    The threshold is $\arg\max f(\theta)$ where $f$ is defined in \autoref{eq:threshold_metric}.
+    THESE ARE RESULTS FOR THE PREVIOUS MODELS}
+    \label{tbl:test_results}
+\end{table*} What's the best way to present that info? hmm
+\begin{table*}[!ht]
+    \begin{center}
+        \begin{tabular}{||c | c c c c||} 
+            \hline
+            Model
+            & Threshold
+            & Precision
+            & Recall
+            & $F_1$-score
+            \\ [0.5ex] 
+            \hline\hline
+            1
+            & 0.866
+            & 0.4414--\textbf{0.7533}--0.9160
+            & 0.6365--\textbf{0.8026}--0.8920
+            & 0.5163--\textbf{0.7487}--0.8507
+            \\ \hline
+            1bis
+            & 0.850
+            & 0.7211--\textbf{0.8266}--0.9171
+            & 0.8193--\textbf{0.9248}--0.9677
+            & 0.7569--\textbf{0.8622}--0.9268
+            \\ \hline
+            2
+            & 0.778
+            & 0.7193--\textbf{0.8543}--0.9162
+            & 0.7553--\textbf{0.8931}--0.9490
+            & 0.7423--\textbf{0.8406}--0.9095
+            \\ \hline
+            3
+            & 0.758
+            & 0.6680--\textbf{0.7667}--0.8670
+            & 0.7691--\textbf{0.8989}--0.9602
+            & 0.7095--\textbf{0.8194}--0.8923
+            \\ \hline
+            4
+            & 1.000
+            & 0.0000--\textbf{0.0000}--0.0000
+            & 0.0000--\textbf{0.0000}--0.0000
+            & 0.0000--\textbf{0.0000}--0.0000
+            \\ \hline
+            5
+            & 0.412
+            & 0.7099--\textbf{0.8537}--0.9126
+            & 0.7281--\textbf{0.8624}--0.9437
+            & 0.7197--\textbf{0.8412}--0.8944
+            \\ \hline
+            6
+            & 0.506
+            & 0.6277--\textbf{0.7720}--0.8679
+            & 0.5241--\textbf{0.7859}--0.9065
+            & 0.5860--\textbf{0.7596}--0.8361
+            \\ \hline
+        \end{tabular}
+    \end{center}
+    \caption{Test results for each model.
+    The threshold is $\arg\max f(\theta)$ where $f$ is defined in \autoref{eq:threshold_metric}.
+    THESE ARE RESULTS FOR THE PREVIOUS MODELS}
+    \label{tbl:test_results}
+\end{table*}
+  
+ 
+
 
 \section{Discussion}
 Discussion is done here.
 
 \section{Conclusion}
-Some amazing conclusion, basically saying we need a Nobel Prize.
+Conclusion is done here.
 
-%\section*{Acknowledgements}
+\section*{Acknowledgements}
 
-\bibliographystyle{IEEEtran}
+\bibliographystyle{ieeetr}
 \bibliography{report}
 
 
