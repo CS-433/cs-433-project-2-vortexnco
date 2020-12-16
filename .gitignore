@@ -5,7 +5,7 @@
 *-checkpoint.ipynb
 *.ipynb_checkpoints
 
-#images
+# Images
 data/
 *.zip
 *.tar
@@ -14,3 +14,4 @@ data/
 
 __pycache__/
 stuff/
+round_num
