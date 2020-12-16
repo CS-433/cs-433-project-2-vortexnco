@@ -23,6 +23,7 @@ class AvailableRooftopDataset(Dataset):
         transform : callable, optional
             Transform to be applied on images.
         prop_noPV : float, optional
+                            TODO COMMENT
             Proportion of noPV (devoid of any rooftop space) to include.
             Must be between 0 and 1.
         """
@@ -53,7 +54,7 @@ class AvailableRooftopDataset(Dataset):
 
             self.image_label_dict[image_full_name] = label_name_associated
 
-        if prop_noPV > 0.0:
+        if (prop_noPV > 0.0) or (prop_noPV == -1):
             self.dir_noPV = dir_noPV
 
             # Get the list of noPV_image from the noPV directory (except dotfile)
@@ -61,15 +62,23 @@ class AvailableRooftopDataset(Dataset):
                 image_name
                 for image_name in os.listdir(dir_noPV)
                 if image_name[0] != "."
-            ]
+            ]            
 
+            # TODO comment
             # Keep a proportion of (random) noPV images
             torch.manual_seed(0)
             random.seed(0)
             random.shuffle(self.noPV_images_name)
-            self.noPV_images_name = self.noPV_images_name[
-                : int(len(self.noPV_images_name) * prop_noPV)
-            ]
+
+            if (prop_noPV == -1):
+                noPV_length = len(self.noPV_images_name)
+            else:
+                noPV_length = int(len(self.images_name)*prop_noPV)
+
+            if (noPV_length <= len(self.noPV_images_name)):
+                self.noPV_images_name = self.noPV_images_name[:noPV_length]
+            else:
+                raise ValueError(f"Not enough noPV images to satisfy prop_noPV: {prop_noPV}")
 
             # Iterate through all the noPV images' name to add them in the dict and to the images_name list
             for noPV_image_full_name in self.noPV_images_name:
@@ -109,16 +118,14 @@ class AvailableRooftopDataset(Dataset):
         # Define a seed to apply the same transforms for 'image' and 'label'
         seed = np.random.randint(2147483647)
 
-        # Apply the transforms if any
-        if self.transform:
-            # Apply transforms on image (and define seed)
-            torch.manual_seed(seed)
-            random.seed(seed)
-            image = self.transform(image)
+        # Apply transforms on image (and define seed)
+        torch.manual_seed(seed)
+        random.seed(seed)
+        image = self.transform(image)
 
-            # Apply transforms on label (and redefine seed)
-            torch.manual_seed(seed)
-            random.seed(seed)
-            label = self.transform(label)
+        # Apply transforms on label (and redefine seed)
+        torch.manual_seed(seed)
+        random.seed(seed)
+        label = self.transform(label)
 
         return image, label[0]

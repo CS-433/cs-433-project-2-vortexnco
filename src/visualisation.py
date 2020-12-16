@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+import torch
 
 from PIL import Image
 from itertools import product
-
+from pipeline import load_data
 
 map_rgb = {0: [0, 255, 0], 1: [0, 0, 0], 2: [255, 0, 0], 3: [255, 215, 0]}
 # If color values are binary
@@ -34,11 +35,82 @@ def compare_labels(true_label, predicted_label):
     comp_array = np.array([predicted_label + true_label, predicted_label - true_label])
     result = np.empty((height, width), dtype=int)
     for i, j in product(range(height), range(height)):
-        result[i, j] = COMPARE_MAP_uint8[tuple(comp_array[:, i, j])]
+        result[i, j] = COMPARE_MAP_01[tuple(comp_array[:, i, j])]
     return result
 
+def show_full_comparisonTestGenerator(model, threshold_prediction = 0.9,
+                        dir_data_training = "../data/train",
+                        dir_data_validation = "../data/validation",
+                        dir_data_test= "../data/test"):
+    """
+    Creates a generator for plots vizualizing the results of the model.
 
-def show_label_comparison(true_label, predicted_label):
+    Parameters
+    ----------
+    model : TYPE
+        Model to use.
+    threshold_prediction : float, optional
+        Threshold to use after the model predicts probabilities. The default is 0.9.
+    dir_data_training : TYPE, optional
+        Directory of Train data. The default is "../data/train".
+    dir_data_validation : TYPE, optional
+        Directory of Validation data. The default is "../data/validation".
+    dir_data_test : TYPE, optional
+        Directory of Test data. The default is "../data/test".
+
+    Returns
+    -------
+    None.
+
+    """
+    _, _, test_dl =  load_data(
+        dir_data_training,
+        dir_data_validation,
+        dir_data_test,
+        prop_noPV_training = 0.0, #dummy value since only used in Train
+        min_rescale_images = 0.6, #dummy value since only used in Train
+        batch_size = 1
+    )
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    for images, labels in test_dl:
+        model.eval()
+        with torch.no_grad():
+            images = images.to(device, dtype=torch.float32)
+            predictions = model(images)
+        
+        #Plotting first image of batch
+        i=0
+        fig, axs = plt.subplots(2,2, figsize = (8,8))
+
+        #Showing Aerial Image
+        image_numpy = images[i].cpu().numpy().transpose((1,2,0))        
+        axs[0,0].imshow(image_numpy)
+        axs[0,0].set_title("Image")
+        
+        #Sgowing True label
+        label_numpy = labels[i].cpu().numpy()
+        axs[0,1].imshow(label_numpy)
+        axs[0,1].set_title("True label")
+        
+        #transforming output of model to probabilities
+        predicted_numpy = np.squeeze(predictions.cpu().numpy()[i])
+        predicted_numpy = 1/(1 + np.exp(-predicted_numpy)) 
+        
+        
+        #Thresholding prediction probabilities to make a decision
+        axs[1,0].imshow(np.where(predicted_numpy>threshold_prediction, 1., 0.))
+        axs[1,0].set_title("Prediction")
+        
+
+        #Comparing label to decision 
+        show_label_comparison(label_numpy, np.where(predicted_numpy>threshold_prediction, 1, 0), axs[1,1])
+        fig.tight_layout()
+        fig.show()
+        yield
+
+def show_label_comparison(true_label, predicted_label, ax):
     """
     Plots an array annotated with TP, FP, TN and FN.
 
@@ -48,6 +120,8 @@ def show_label_comparison(true_label, predicted_label):
         True label for the image; only contains 1s and 0s.
     predicted_label : ndarray
         Prediction from the model for the image; only contains 1s and 0s.
+    ax :
+        Axe object on which to plot the comparison
 
     Returns:
     ========
@@ -66,8 +140,7 @@ def show_label_comparison(true_label, predicted_label):
     TN = mpatches.Patch(color="black", label="TN")
     FP = mpatches.Patch(color="red", label="FP")
     FN = mpatches.Patch(color=[255 / 255, 215 / 255, 0], label="FN")
-    plt.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
-    plt.show()
+    ax.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
 
 
 def plot_precision_recall_f1(

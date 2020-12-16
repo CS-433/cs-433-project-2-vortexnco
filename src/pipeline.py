@@ -68,6 +68,8 @@ def load_data(
             prop_noPV=prop_noPV_training,
         )
 
+    # No transform applied to validation and train images (the model should not need
+    # any preprocessing)
     transform_id = transforms.Compose(
         [
             transforms.ToPILImage(),
@@ -88,6 +90,7 @@ def load_data(
         for dir_data in (dir_data_validation, dir_data_test)
     )
 
+    # Instantiate the DataLoaders
     roof_train_dl, roof_validation_dl, roof_test_dl = (
         DataLoader(roof_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
         if roof_dataset
