@@ -33,16 +33,20 @@ def summary_stats(array, axis=0, type="median", lower_bound=None):
         Third row is upper bound (e.g. mean + std or third quartile)
     """
     if type in ["mean", "average", "avg"]:
-        if not lower_bound:
-            lower_bound = 1
-        else:
-            assert(lower_bound >= 0)
         mid = np.mean(array, axis=axis)
-        std = np.std(array, axis=axis)
-        lower = mid - lower_bound * std
-        upper = mid + lower_bound * std
+        if lower_bound == 0:
+            lower = mid
+            upper = mid
+        else:
+            if lower_bound is None:
+                lower_bound = 1
+            else:
+                assert(lower_bound > 0)
+            std = np.std(array, axis=axis)
+            lower = mid - lower_bound * std
+            upper = mid + lower_bound * std
     elif type in ["median", "order", "quantiles"]:
-        if not lower_bound:
+        if lower_bound is None:
             lower_bound = 25
         else:
             assert(lower_bound >= 0 and lower_bound <= 50)
