@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from itertools import product
-from pipeline import load_data
+from load_data import load_data
 
 map_rgb = {0: [0, 255, 0], 1: [0, 0, 0], 2: [255, 0, 0], 3: [255, 215, 0]}
 # If color values are binary
