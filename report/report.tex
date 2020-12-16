@@ -61,7 +61,8 @@
 \begin{abstract}
 %TODO explain why it is important an that we are the first ones to do it
 %Say we also labelled
-  In this report we propose and analyze a neural network for automatic detection of available rooftop solar panel installations on aerial images. We focus on tuning the network and on analyzing methods to use its outcome to make decisions. 
+  In this report we propose and analyze a neural network for automatic detection of available rooftop solar panel installations on aerial images. We focus on tuning the network and on analyzing methods to use its outcome to make decisions.
+  %TODO state results of best model
 \end{abstract}
 
 \section{Introduction}
@@ -76,7 +77,7 @@ The dataset used consists of ortho-rectified [**TODO should explain ?**] images 
 
 \subsection{Data labelling}
 %Updated tool labelled images ourselves, show strange example
-We labelled X images using an updated version of an existing labelling tool based on OpenCV~\cite{Castello_2019}. The tool of this paper is used to label solar panels which are usually rectangular, we update it for our task by making it easy to select regions of an image (usually a roof) and then extruding parts of it (usually hyperstructures on the roof making it not suitable as area for solar panels). Each pixel that belongs to a rooftop where there is available space to place solar photovoltaic panels are classified as \emph{PV pixels}, whereas the other pixels are classified as \emph{no-PV pixels}, they do not correspond to rooftop or there are obstacles that do not allow to place any photovoltaic panels on it (e.g. chimney, pipe, windows, etc.).
+We labelled X images using an updated version of an existing labelling tool based on OpenCV~\cite{Castello_2019}. The tool of this paper is used to label solar panels which are usually rectangular, we update it for our task by making it easy to select regions of an image (usually a roof) and then extruding parts of it (parts of the roof not suitable for solar panels). Each pixel that belongs to a rooftop where there is available space to place solar photovoltaic panels are classified as \emph{PV pixels}, whereas the other pixels are classified as \emph{no-PV pixels}, they do not correspond to rooftop or there are obstacles that do not allow to place any photovoltaic panels on it (e.g. chimney, pipe, windows, etc.).
 
 The labelled images were chosen from a randomized subset of the dataset mentioned above, taken from different tiles (area) of the canton in order to have the most representative variety of rooftop shapes and types (industrial, old town, center town, countryside, etc.). 
 
@@ -110,15 +111,12 @@ and the latter to \textit{find the locality} of these features in the original s
 
 The contracting path we use consists of 5 stages where we apply two $3 \times 3$ convolutions padded by 1 pixel on each side,
 each followed by a batch normalization layer and a rectified linear unit.
-% Beaucoup de fois "stage"
-The number of channels per stage after the first convolution of the stage remains constant throughout the stage.
 We use the same number of channels as described in \autoref{fig:UNetarchitecture}, namely 64, 128, 256, 512 and 1024 for each stage of the contracting path. 
 Stages in the contracting path are separated by a $2 \times 2$ max-pooling layer with a stride of 2. 
 
 The expanding path we use consists of 4 stages starting by an upsampling by a factor of 2 and a $2 \times 2$ convolution to halve the number of channels,
 a copy of the feature map in the corresponding stage of the contracting path is concatenated and then $3 \times 3$ convolutions padded by 1 pixel on each side are applied,
 each followed by a batch normalization layer and a rectified linear unit.
-The number of channels per stage remains constant after the second convolution at any given stage.
 We use the same number of channels per stage as in \autoref{fig:UNetarchitecture}, namely 512, 256, 128 and 64.
 
 The model terminates by a $1 \times 1$ convolution to a feature map with only one channel.
@@ -193,11 +191,11 @@ We use the three losses mentioned in \autoref{loss}. For the weighted cross entr
 \subsubsection{Learning rate scheduling}
 We try different constant values of the learning rate of the optimizer. However, small values tend to reach a better minimum of the loss function but very slowly, while big values are faster but don't guarantee a good convergence. We propose to use a learning rate scheduler to combine the best of both. We start training with a larger learning rate and decrease it during training.
 
-\subsection{Tuning threshold on probability after training model}
+\subsection{Tuning threshold on probability after training model} \label{ssec:threshold}
 Since the model outputs weights (real numbers in all of $\mathbb{R}$),
 we use a sigmoid to transform the weights into numbers in $[0,1]$.
 Once this is done, we still need to find the best decision boundary---the threshold probability $\theta$ over which a pixel is decided to be available for PV.
-For that we perform a grid-search over thresholds, computing the $F_1$-score over our validation set
+For that we perform a grid-search over thresholds, computing the $F_1$-score over our validation set 
 for each threshold.
 Finally, we compute the median $Q_2(\theta)$ for each threshold and find the one that maximizes this.
 %Then, we compute order statistics (first, second and third quartiles) and find the threshold that maximizes the following metric:
@@ -208,10 +206,6 @@ Finally, we compute the median $Q_2(\theta)$ for each threshold and find the one
 %Our reasoning is that while the median $F_1$-score
 %should be high, we should also prioritize
 %values for which we are more certain of the ``true'' $F_1$-score.
-
-Once the best threshold is found, we use this to produce
-the final model; we apply this on our test set and compute
-standard classification metrics for each prediction.
 
 
 As a reminder, the precision of the prediction
@@ -230,11 +224,11 @@ Setting the value to 0 in case of noPV is not sensible,
 because in this case, even if the model perfectly predicts
 all pixels as 0, both precision and recall will be set to 0
 (hence so will the $F_1$-score).
-However, setting the value to 1 is also suboptimal, because
+However, setting the value to 1 also seems suboptimal, because
 then we can't make the difference between a model that
 perfectly predicted where a PV area was, and a model
 that did any prediction on a noPV image.
-In both cases, the $F_1$-score is being influenced artificially in an varying manner.
+In both cases, the $F_1$-score is being influenced artificially.
 
 Another solution was then to compute precision and recall
 as weighted averages, as is done with multi-class
@@ -244,9 +238,28 @@ with 1 as the positive class and also with 0 as the
 positive class, and then take a weighted average of
 the two; the weights are the support of each class.
 That way, division-by-zero issues naturally disappear.
-However, this tended to give a disproportionate
+Unfortunately, this tended to give a disproportionate
 boost to the precision whereas the recall is not as
 affected (in fact, it becomes equal to the accuracy).
+
+Finally, we decided that would be concatenating all the images
+in the set and to compute each metric just once.
+That way, though we lose out on the statistical power
+that computing for each image might bring, we are
+certain that no undefined behaviour will occur.
+
+%Despite the issues it had, we went with the we decided the issues it has, w
+
+\subsection{Testing}
+Once the best threshold is found, we use this to produce
+the final model; we apply this on our test set and compute
+standard classification metrics for each prediction,
+using the last method presented in \autoref{ssec:threshold}.
+
+
+Finally, we decided that a good estimator for the
+performance would be to concatenate all the images
+in t
 % is computed as
 % \begin{equation*}
 %     \text{precision} = \frac{\#\tp}{\#\tl1}
@@ -431,6 +444,13 @@ Various standard classification metrics are computed and collected in \autoref{t
     \includegraphics[width=\columnwidth]{report/images/train_validation_errors.png}
     \caption{Train and validation errors during training of the best model (6).}
     \label{fig:train_validation_errors}
+\end{figure}
+
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=\columnwidth]{report/images/prediction.png}
+    \caption{Prediction of the best model on an image from the Test set.}
+    \label{fig:prediction}
 \end{figure}
 
 \section{Discussion}
