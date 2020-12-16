@@ -138,7 +138,6 @@ def main(
     batch_size: int = 32,
     dir_data_training: str = "../data/train",
     dir_data_validation: str = "../data/validation",
-    dir_data_test: str = "../data/test",
     prop_noPV_training: float = 0.25,
     min_rescale_images: float = 0.6,
     file_losses: str = "losses.txt",
@@ -177,8 +176,6 @@ def main(
         Directory where the folders "images/", "labels/" and "noPV/" are for the training set.
     dir_data_validation : str, optional
         Directory where the folders "images/", "labels/" and "noPV/" are for the validation set.
-    dir_data_test : str, optional
-        Directory where the folders "images/", "labels/" and "noPV/" are for the test set.
     prop_noPV_training : float, optional
         Proportion noPV images to add compared to the total amount of PV images in the train set. The default is 0.25.
     min_rescale_images : float, optional
@@ -236,7 +233,6 @@ def main(
         batch_size,
         dir_data_training,
         dir_data_validation,
-        dir_data_test,
     )
 
     if loss == "BCE":
