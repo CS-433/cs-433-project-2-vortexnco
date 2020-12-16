@@ -8,21 +8,16 @@ from helpers import summary_stats
 from visualisation import plot_precision_recall_f1
 from pipeline import load_data
 
-
 METRICS = {
     "accuracy" : sklearn.metrics.accuracy_score,
     "balanced_accuracy" : sklearn.metrics.balanced_accuracy_score,
     "average_precision" : sklearn.metrics.average_precision_score,
     "neg_brier_score" : sklearn.metrics.brier_score_loss,
-    "f1" : sklearn.metrics.f1_score,
-    # "f1_micro" : sklearn.metrics.f1_score,
-    # "f1_macro" : sklearn.metrics.f1_score,
-    # "f1_weighted" : sklearn.metrics.f1_score,
-    # "f1_samples" : sklearn.metrics.f1_score,
+    "f1" : lambda true, pred: sklearn.metrics.f1_score(true, pred, zero_division=1, average="weighted"),
     "neg_log_loss" : sklearn.metrics.log_loss,
-    "precision" : sklearn.metrics.precision_score,
-    "recall" : sklearn.metrics.recall_score,
-    "jaccard" : sklearn.metrics.jaccard_score,
+    "precision" : lambda true, pred: sklearn.metrics.precision_score(true, pred, zero_division=1, average="weighted"),
+    "recall" : lambda true, pred: sklearn.metrics.recall_score(true, pred, zero_division=1, average="weighted"),
+    "jaccard" : lambda true, pred: sklearn.metrics.jaccard_score(true, pred, average="weighted"),
     "roc_auc" : sklearn.metrics.roc_auc_score,
     # "roc_auc_ovr" : sklearn.metrics.roc_auc_score,
     # "roc_auc_ovo" : sklearn.metrics.roc_auc_score,
@@ -58,13 +53,23 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     """
     # Don't keep 0 or 1 because they are uninteresting
     # and they cause issues down the line
-    thresholds = np.linspace(0, 1, n_thresholds)[1:-1]
-    n_thresholds -= 2
+    thresholds = np.linspace(0, 1, n_thresholds)[1:]
+    n_thresholds -= 1
     pred_probas = 1 / (1 + np.exp(-predictions))
 
     precision = np.zeros((len(predictions), n_thresholds))
     recall = np.zeros((len(predictions), n_thresholds))
     f1_scores = np.zeros((len(predictions), n_thresholds))
+
+   # for i, (true, pred) in enumerate(zip(labels, pred_probas)):
+   #     true = true.flatten()
+   #     pred = pred.flatten()
+   #     for j, thresh in enumerate(thresholds):
+   #         pred = np.where(pred > thresh, 1, 0)
+   #         # When image has no PV the score should be high if the model predicts all 0's
+   #         #print(sklearn.metrics.precision_recall_fscore_support(true, pred, zero_division=1))
+   #         precision[i, j], recall[i, j], f1_scores[i, j], _ = sklearn.metrics.precision_recall_fscore_support(true, pred, average="binary", zero_division=1)
+    n = len(pred_probas[0].flatten())
 
     for i, (true, pred) in enumerate(zip(labels, pred_probas)):
         pred = pred.flatten()
@@ -85,10 +90,21 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
         tps = np.cumsum(true[::-1])[::-1][thresholds_idx]
         # If you never predict 1 you have no true positives
         tps[limit_idx] = 0
-        predicted_true = len(true) - thresholds_idx
-        actually_true = tps[0]
+        predicted_1 = n - thresholds_idx
+        predicted_0 = n - predicted_1
+        actually_1 = tps[0]
+        actually_0 = n - actually_1
+        # Positives - True positives
+        fns = actually_1 - tps
+        # Negatives - False negatives
+        tns = actually_0 - fns
 
-        prec = tps / predicted_true
+        with np.errstate(divide="ignore", invalid="ignore"):
+            prec_1 = tps / predicted_1
+            prec_0 = tns / predicted_0
+        prec_1 = np.nan_to_num(prec_1, 0)
+        prec_0 = np.nan_to_num(prec_0, 0)
+        prec = (actually_1 * prec_1 + actually_0 * prec_0) / n
         # If you never predict 1 your precision is bad
         # But I need the precision-recall curve to make sense
         # (i.e. that precision = 1 when recall = 0)
@@ -97,24 +113,29 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
         prec[limit_idx] = 1
         precision[i] = prec
         with np.errstate(divide="ignore", invalid="ignore"):
-            rec = tps / actually_true
-        rec = np.nan_to_num(rec, 0)
+            rec_1 = tps / actually_1
+            rec_0 = tns / actually_0
+        rec_1 = np.nan_to_num(rec_1, 0)
+        rec_0 = np.nan_to_num(rec_0, 0)
+        # The recall weighted by support seems to be the same as the accuracy
+        rec = (actually_1 * rec_1 + actually_0 * rec_0) / n
         recall[i] = rec
         with np.errstate(divide="ignore", invalid="ignore"):
             f1 = 2 * (prec * rec) / (prec + rec)
         f1_scores[i] = np.nan_to_num(f1, 0)
 
     summary_type = "median"
-    lower_bound = 40
+    lower_bound = 25
     prec_summary = summary_stats(precision, type=summary_type, lower_bound=lower_bound)
     rec_summary = summary_stats(recall, type=summary_type, lower_bound=lower_bound)
     f1_summary = summary_stats(f1_scores, type=summary_type, lower_bound=lower_bound)
+    print(f1_summary)
 
     # Estimating what the threshold should be set to
     f1_lower, f1_mid, f1_upper = (row for row in f1_summary)
     # This measure penalises uncertain choices (maximize (mean - spread))
-    # idx_best = np.argmax(f1_mid - (f1_upper - f1_lower))
-    idx_best = np.argmax(f1_mid)
+    idx_best = np.argmax(f1_mid - (f1_upper - f1_lower))
+    # idx_best = np.argmax(f1_mid)
     if plot:
         plot_precision_recall_f1(
             thresholds, prec_summary, rec_summary, f1_summary, idx_best=idx_best
@@ -217,7 +238,6 @@ def main(
         dir_data_test = os.path.join(dir_data, "test")
 
         _, validation_dl, test_dl = load_data(
-            dir_data_training="",
             dir_data_validation=dir_data_validation,
             dir_data_test=dir_data_test,
             prop_noPV_training=0,  # Has no impact
@@ -237,10 +257,11 @@ def main(
             val_predictions = model(val_images)
             test_predictions = model(test_images)
             # Convert to numpy arrays for computing
-            val_predictions = np.squeeze(val_predictions.cpu().numpy(), axis=0)
-            val_labels = np.squeeze(val_labels.cpu().numpy(), axis=0)
-            test_predictions = np.squeeze(test_predictions.cpu().numpy(), axis=0)
-            test_labels = np.squeeze(test_labels.cpu().numpy(), axis=0)
+            #print(np.squeeze(val_predictions.cpu().numpy()).shape)
+            val_predictions = np.squeeze(val_predictions.cpu().numpy())
+            val_labels = np.squeeze(val_labels.cpu().numpy())
+            test_predictions = np.squeeze(test_predictions.cpu().numpy())
+            test_labels = np.squeeze(test_labels.cpu().numpy())
             # Save to file as numpy arrays
             if to_file:
                 print("Saving results to file")
@@ -269,7 +290,7 @@ def main(
         print("Testing starting with metrics:")
         print(", ".join(test))
         results = test_model(test_predictions, test_labels, best_threshold, *test)
-        print(results)
+        #print(results)
         summary_type = "median"
         results_file = os.path.join(model_dir, "test_results.txt")
         # results = np.column_stack([summary_stats(x, type=summary_type) for x in [f1, precision, recall]])
@@ -293,7 +314,7 @@ def main(
 
 if __name__ == "__main__":
     dir_models = "/home/auguste/allFinalModels/"
-    dir_data = "/raid/machinelearning_course/data_split"
+    dir_data = "/raid/machinelearning_course/data"
     #dir_models = "../stuff/models_data/"
     #dir_data = "../data/data/"
 
