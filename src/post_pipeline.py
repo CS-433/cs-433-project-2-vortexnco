@@ -101,10 +101,11 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
 
         with np.errstate(divide="ignore", invalid="ignore"):
             prec_1 = tps / predicted_1
-            prec_0 = tns / predicted_0
-        prec_1 = np.nan_to_num(prec_1, 0)
-        prec_0 = np.nan_to_num(prec_0, 0)
-        prec = (actually_1 * prec_1 + actually_0 * prec_0) / n
+        #     prec_0 = tns / predicted_0
+        # prec_1 = np.nan_to_num(prec_1, 0)
+        # prec_0 = np.nan_to_num(prec_0, 0)
+        # prec = (actually_1 * prec_1 + actually_0 * prec_0) / n
+        prec = np.nan_to_num(prec_1, 1)
         # If you never predict 1 your precision is bad
         # But I need the precision-recall curve to make sense
         # (i.e. that precision = 1 when recall = 0)
@@ -114,11 +115,12 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
         precision[i] = prec
         with np.errstate(divide="ignore", invalid="ignore"):
             rec_1 = tps / actually_1
-            rec_0 = tns / actually_0
-        rec_1 = np.nan_to_num(rec_1, 0)
-        rec_0 = np.nan_to_num(rec_0, 0)
-        # The recall weighted by support seems to be the same as the accuracy
-        rec = (actually_1 * rec_1 + actually_0 * rec_0) / n
+        #     rec_0 = tns / actually_0
+        # rec_1 = np.nan_to_num(rec_1, 0)
+        # rec_0 = np.nan_to_num(rec_0, 0)
+        # # The recall weighted by support seems to be the same as the accuracy
+        # rec = (actually_1 * rec_1 + actually_0 * rec_0) / n
+        rec = np.nan_to_num(rec_1, 1)
         recall[i] = rec
         with np.errstate(divide="ignore", invalid="ignore"):
             f1 = 2 * (prec * rec) / (prec + rec)
@@ -313,10 +315,10 @@ def main(
 
 
 if __name__ == "__main__":
-    dir_models = "/home/auguste/allFinalModels/"
-    dir_data = "/raid/machinelearning_course/data"
-    #dir_models = "../stuff/models_data/"
-    #dir_data = "../data/data/"
+    # dir_models = "/home/auguste/allFinalModels/"
+    # dir_data = "/raid/machinelearning_course/data"
+    dir_models = "../stuff/models_data/"
+    dir_data = "../data/data/"
 
     test = ["precision", "recall", "f1", "accuracy", "jaccard"]
 
@@ -328,5 +330,5 @@ if __name__ == "__main__":
             to_file=True,
             validation=True,
             test=test,
-            plot=False,
+            plot=True,
         )
