@@ -1,4 +1,9 @@
-# detection-available-area-PV
+# CS-433 Machine Learning project 2
+## Automatic detection of available area for rooftop solar panel installations
+
+*by Ghali Chraibi, Auguste Baum, Alexander Apostolov*
+
+In this project, we provide Python code to detect rooftop available surface for installing PV modules in aerial images using Machine Learning. The model we use is a U-Net.
 
 Detecting rooftop available surface for installing PV modules in aerial images using Machine Learning
 
