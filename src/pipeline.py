@@ -9,12 +9,12 @@ import os
 
 
 def load_data(
-    dir_data_training: str,
-    dir_data_validation: str,
-    dir_data_test: str,
     prop_noPV_training: float,
     min_rescale_images: float,
     batch_size: int,
+    dir_data_training: str = "",
+    dir_data_validation: str = "",
+    dir_data_test: str = "",
 ):
     """
     Create the DataLoader objects that will generate the training, validation and test sets.
@@ -83,7 +83,7 @@ def load_data(
             dir_noPV=os.path.join(dir_data, "noPV"),
             dir_labels=os.path.join(dir_data, "labels"),
             transform=transform_id,
-            prop_noPV=1.0,
+            prop_noPV=-1, # All of them
         )
         if dir_data
         else None
