@@ -48,13 +48,11 @@
 \title{{\LARGE Automatic detection of available area for rooftop solar panel installations}\vspace{-3mm}}    
 
 \author{
+  \textit{CS-433 Machine Learning --- December 2020, EPFL, Switzerland}\\
   Alexander \textsc{Apostolov} (\texttt{alexander.apostolov@epfl.ch})\\
   Auguste \textsc{Baum} (\texttt{auguste.baum@epfl.ch})\\
   Ghali \textsc{Chraibi} (\texttt{ghali.chraibi@epfl.ch})\\
-  \\
-  Supervisor: Roberto \textsc{Castello} (\texttt{roberto.castello@epfl.ch})\\ EPFL Laboratory of Solar Energy and Building Physics\\
-  \\
-  \textit{CS-433 Machine Learning --- December 2020, EPFL, Switzerland}
+  Supervisor: Roberto \textsc{Castello} (\texttt{roberto.castello@epfl.ch})\\ EPFL Laboratory of Solar Energy and Building Physics
 }
 \maketitle
 
@@ -124,7 +122,7 @@ From this output we can compute, for each pixel, the probability that it represe
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=\columnwidth]{report/images/UNet.png}
+    \includegraphics[width=.8\columnwidth]{report/images/UNet.png}
     \caption{
         U-Net example as described in the original paper~\cite{ronneberger2015unet}.
         Each blue box corresponds to a multi-channel feature map; the number of channels is found on top of the box, and the dimensions are at the lower left edge of the box.
@@ -197,7 +195,7 @@ we use a sigmoid to transform the weights into numbers in $[0,1]$.
 Once this is done, we still need to find the best decision boundary---the threshold probability $\theta$ over which a pixel is decided to be available for PV.
 For that we perform a grid-search over thresholds, computing the $F_1$-score over our validation set 
 for each threshold.
-Finally, we compute the median $Q_2(\theta)$ for each threshold and find the one that maximizes this.
+%Finally, we compute the median $Q_2(\theta)$ for each threshold and find the one that maximizes this.
 %Then, we compute order statistics (first, second and third quartiles) and find the threshold that maximizes the following metric:
 %\begin{equation} \label{eq:threshold_metric}
 %    f(\theta) = Q_2(\theta) - (Q_3(\theta) - Q_1(\theta))
@@ -439,28 +437,41 @@ Various standard classification metrics are computed and collected in \autoref{t
     \label{tbl:test_results}
 \end{table*}
 
-\begin{figure}[tbp]
-    \centering
-    \includegraphics[width=\columnwidth]{report/images/train_validation_errors.png}
-    \caption{Train and validation errors during training of the best model (6).}
-    \label{fig:train_validation_errors}
+We choose the model 6 as the best model based on the IoU score. The train and validation error are shown in \autoref{fig:train_validation_errors}. We see that there are some peaks but they decrease after the rescheduling after 50 epochs. \autoref{fig:precision_recall} shows how we set the threshold for this model.
+
+
+
+\begin{figure}
+\centering
+    \begin{minipage}[b]{.45\columnwidth}
+        \includegraphics[width=\columnwidth]{report/images/train_validation_errors.png}
+        \caption{Train and validation errors during training of the best model (no. 6).}
+        \label{fig:train_validation_errors}
+    \end{minipage}\quad
+    \begin{minipage}[b]{.45\columnwidth}
+        \includegraphics[width=\columnwidth]{report/images/placeholder_precision_recall.png}
+        \caption{Precision recall plot placeholder that needs to be changed}
+        \label{fig:precision_recall}
+    \end{minipage}
 \end{figure}
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=\columnwidth]{report/images/prediction.png}
+    \includegraphics[width=.8\columnwidth]{report/images/prediction.png}
     \caption{Prediction of the best model on an image from the Test set.}
     \label{fig:prediction}
 \end{figure}
 
 \section{Discussion}
-Discussion is done here.
+We convince ourselves that this model works well by looking at the predictions it makes. \autoref{fig:prediction} shows the prediction of the model on a test image. We see that the model recognizes roofs really well and manages to exclude big obstacles. However small obstacles on the roof are harder to be recognised by the model and changing patterns on the roof can fool the model into thinking there is an obstacle. 
+%TODO add discussion about the fact that moving the threshold can be better to have less FP or FN.
+Adding more labelled images to the dataset would probably also make for 
 
 \section{Conclusion}
 Conclusion is done here.
 
 \section*{Acknowledgements}
-
+We would like to thank Pr. Castello and Simon Roquette from his lab for their guidance and helping advices during this project.
 \bibliographystyle{ieeetr}
 \bibliography{report}
 
