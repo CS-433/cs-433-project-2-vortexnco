@@ -14,7 +14,7 @@ def load_data(
     dir_data_test: str,
     prop_noPV_training: float,
     min_rescale_images: float,
-    batch_size: int
+    batch_size: int,
 ):
     """
     Create the DataLoader objects that will generate the training, validation and test sets.
@@ -22,11 +22,14 @@ def load_data(
     Parameters
     ----------
     dir_data_training : str
-        Directory where the folders "/images", "/labels" and "noPV/" are for the training set.
+        Directory where the folders "images/", "labels/" and "noPV/" are for the training set.
+        If empty, the data is not generated.
     dir_data_validation : str
-        Directory where the folders "/images", "/labels" and "noPV/" are for the validation set.
+        Directory where the folders "images/", "labels/" and "noPV/" are for the validation set.
+        If empty, the data is not generated.
     dir_data_test : str
-        Directory where the folders "/images", "/labels" and "noPV/" are for the test set.
+        Directory where the folders "images/", "labels/" and "noPV/" are for the test set.
+        If empty, the data is not generated.
     prop_noPV_training : float
         Proportion of noPV images to add for the training of the model.
     min_rescale_images : float
@@ -37,73 +40,63 @@ def load_data(
     Returns
     -------
     train_dl : torch.utils.data.DataLoader
-        Training DataLoader.
+        Training DataLoader, if data directory is provided, otherwise None.
     validation_dl : torch.utils.data.DataLoader
-        Validation DataLoader.
+        Validation DataLoader, if data directory is provided, otherwise None.
     test_dl : torch.utils.data.DataLoader
-        Test DataLoader.
+        Test DataLoader, if data directory is provided, otherwise None.
     """
+    roof_train_dataset = None
+    if dir_data_training:
+        # Transforms to augment the data (for training set)
+        transform_aug = transforms.Compose(
+            [
+                transforms.ToPILImage(),
+                transforms.RandomResizedCrop(
+                    250, scale=(min_rescale_images, 1.0), ratio=(1.0, 1.0)
+                ),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+            ]
+        )
+        # Instantiate the training dataset
+        roof_train_dataset = AvailableRooftopDataset(
+            dir_PV=os.path.join(dir_data_training, "PV"),
+            dir_noPV=os.path.join(dir_data_training, "noPV"),
+            dir_labels=os.path.join(dir_data_training, "labels"),
+            transform=transform_aug,
+            prop_noPV=prop_noPV_training,
+        )
 
-    ## Define transforms
-    # Transforms to augment the data (for training set)
-    transform_aug = transforms.Compose(
-        [
-            transforms.ToPILImage(),
-            transforms.RandomResizedCrop(
-                250, scale=(min_rescale_images, 1.0), ratio=(1.0, 1.0)
-            ),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-        ]
-    )
-
-    # Identity transforms (for validation and test set)
     transform_id = transforms.Compose(
         [
             transforms.ToPILImage(),
             transforms.ToTensor(),
         ]
     )
-
-    ## Define datasets
-    # Instantiate the training dataset
-    roof_train_dataset = AvailableRooftopDataset(
-        dir_PV=os.path.join(dir_data_training, "PV"),
-        dir_noPV=os.path.join(dir_data_training, "noPV"),
-        dir_labels=os.path.join(dir_data_training, "labels"),
-        transform=transform_aug,
-        prop_noPV=prop_noPV_training,
+    # Instantiate the validation and test datasets
+    roof_validation_dataset, roof_test_dataset = (
+        AvailableRooftopDataset(
+            dir_PV=os.path.join(dir_data, "PV"),
+            dir_noPV=os.path.join(dir_data, "noPV"),
+            dir_labels=os.path.join(dir_data, "labels"),
+            transform=transform_id,
+            prop_noPV=1.0,
+        )
+        if dir_data
+        else None
+        for dir_data in (dir_data_validation, dir_data_test)
     )
 
-    # Instantiate the validation dataset
-    roof_validation_dataset = AvailableRooftopDataset(
-        dir_PV=os.path.join(dir_data_validation, "PV"),
-        dir_noPV=os.path.join(dir_data_validation, "noPV"),
-        dir_labels=os.path.join(dir_data_validation, "labels"),
-        transform=transform_id,
-        prop_noPV=1.0,
-    )
-
-    # Instantiate the test dataset
-    roof_test_dataset = AvailableRooftopDataset(
-        dir_PV=os.path.join(dir_data_test, "PV"),
-        dir_noPV=os.path.join(dir_data_test, "noPV"),
-        dir_labels=os.path.join(dir_data_test, "labels"),
-        transform=transform_id,
-        prop_noPV=1.0,
-    )
-
-    ## Instantiate DataLoader objects for each dataset (train/validation/test)
-    roof_train_dl = DataLoader(
-        roof_train_dataset, batch_size=batch_size, shuffle=True, num_workers=0
-    )
-
-    roof_validation_dl = DataLoader(
-        roof_validation_dataset, batch_size=batch_size, shuffle=True, num_workers=0
-    )
-
-    roof_test_dl = DataLoader(
-        roof_test_dataset, batch_size=batch_size, shuffle=True, num_workers=0
+    roof_train_dl, roof_validation_dl, roof_test_dl = (
+        DataLoader(roof_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+        if roof_dataset
+        else None
+        for roof_dataset in (
+            roof_train_dataset,
+            roof_validation_dataset,
+            roof_test_dataset,
+        )
     )
 
     return roof_train_dl, roof_validation_dl, roof_test_dl
@@ -234,13 +227,12 @@ def train(
 def main(
     num_epochs: int = 100,
     learning_rate: float = 1e-3,
-    optimizer_type : str = "ADAM",
-    loss : str = "BCE",
+    optimizer_type: str = "ADAM",
+    loss: str = "BCE",
     use_scheduler: bool = False,
     milestones_scheduler: list = None,
     gamma_scheduler: float = None,
     batch_size: int = 32,
-    # dir_data: str = "/raid/machinelearning_course/data/",
     dir_data_training: str = "../data/train",
     dir_data_validation: str = "../data/validation",
     dir_data_test: str = "../data/test",
@@ -279,11 +271,11 @@ def main(
     batch_size : int, optional
         Number of samples per batch in the Dataloaders. The default is 32.
     dir_data_training : str, optional
-        Directory where the folders "/images", "/labels" and "noPV/" are for the training set.
+        Directory where the folders "images/", "labels/" and "noPV/" are for the training set.
     dir_data_validation : str, optional
-        Directory where the folders "/images", "/labels" and "noPV/" are for the validation set.
+        Directory where the folders "images/", "labels/" and "noPV/" are for the validation set.
     dir_data_test : str, optional
-        Directory where the folders "/images", "/labels" and "noPV/" are for the test set.
+        Directory where the folders "images/", "labels/" and "noPV/" are for the test set.
     prop_noPV_training : float, optional
         Proportion of all noPV images to add. The default is 0.0.
     min_rescale_images : float, optional
@@ -337,9 +329,11 @@ def main(
     # Instantiate the dataset
     roof_dataloader_train, roof_dataloader_validation, roof_dataloader_test = load_data(
         dir_data_training,
+        dir_data_validation,
+        dir_data_test,
         prop_noPV_training,
         min_rescale_images,
-        batch_size
+        batch_size,
     )
 
     if loss == "BCE":
@@ -350,7 +344,7 @@ def main(
         criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     elif loss == "L1":
         criterion = torch.nn.L1Loss()
-    else : 
+    else:
         raise NotImplementedError(f"{loss} is not implemented.")
 
     model = UNet(n_channels=3, n_classes=1, bilinear=False)
@@ -364,12 +358,12 @@ def main(
         model.load_state_dict(torch.load(path_model_parameters_to_load))
 
     # If we're training or retraining a model
-    if (num_epochs > 0):
+    if num_epochs > 0:
         if optimizer_type == "ADAM":
             optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         elif optimizer_type == "SGD":
             optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-        else : 
+        else:
             raise NotImplementedError(f"{optimizer} is not implemented.")
         scheduler = None
         if use_scheduler:
