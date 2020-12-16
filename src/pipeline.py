@@ -7,7 +7,6 @@ from model.unet_model import UNet
 from torchvision import transforms
 import os
 
-
 def load_data(
     prop_noPV_training: float,
     min_rescale_images: float,
@@ -331,12 +330,12 @@ def main(
 
     # Instantiate the dataset
     roof_dataloader_train, roof_dataloader_validation, roof_dataloader_test = load_data(
-        dir_data_training,
-        dir_data_validation,
-        dir_data_test,
         prop_noPV_training,
         min_rescale_images,
         batch_size,
+        dir_data_training,
+        dir_data_validation,
+        dir_data_test,
     )
 
     if loss == "BCE":

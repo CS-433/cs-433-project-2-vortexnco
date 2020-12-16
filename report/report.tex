@@ -278,7 +278,17 @@ and the model is then applied with that threshold to a test set.
 Various standard classification metrics are computed and collected in \autoref{tbl:test_results}.
 
 % I also want to put the 1st and 3rd quartiles -- maybe I could have it span the 2 columns?
-% What's the best way to present that info? hmm
+\begin{table*}[!ht]
+    \begin{center}
+        \begin{tabular}{||c | c c c c||} 
+             \input{report/res_latex}
+        \end{tabular}
+    \end{center}
+    \caption{Test results for each model.
+    The threshold is $\arg\max f(\theta)$ where $f$ is defined in \autoref{eq:threshold_metric}.
+    THESE ARE RESULTS FOR THE PREVIOUS MODELS}
+    \label{tbl:test_results}
+\end{table*} What's the best way to present that info? hmm
 \begin{table*}[!ht]
     \begin{center}
         \begin{tabular}{||c | c c c c||} 

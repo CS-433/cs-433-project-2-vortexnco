@@ -3,7 +3,6 @@ import matplotlib.patches as mpatches
 import numpy as np
 import torch
 
-from PIL import Image
 from itertools import product
 from pipeline import load_data
 
