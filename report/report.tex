@@ -33,22 +33,32 @@
   Auguste BAUM (auguste.baum@epfl.ch)\\
   Ghali CHRAIBI (ghali.chraibi@epfl.ch)\\
   \\
-  Supervisor : Roberto Castello (roberto.castello@epfl.ch)\\ EPFL Laboratory of Solar Energy and Building Physics\\
+  Supervisor: Roberto Castello (roberto.castello@epfl.ch)\\ EPFL Laboratory of Solar Energy and Building Physics\\
   \\
   \textit{CS-433 Machine Learning --- December 2020, EPFL, Switzerland}
 }
 \maketitle
 
 \begin{abstract}
-  Some cool abstract.
+  In this report we propose and analyze a neural network for automatic detection of available rooftop solar panel installations on aerial images. We focus on tuning the network and on analyzing methods to use its probabilistic outcome to make decisions. 
 \end{abstract}
 
 \section{Introduction}
 Some cool intro.
 
 \section{Models and Methods}
-Models and methods explained here.
+
+\subsection{U-Net}
+Computer vision tasks are commonly tackled using convolutional networks. 
+%TODO explain what a convolution is
+Here we propose to use a special convolutional network called a U-Net~\cite{ronneberger2015unet} introduced in 2015 for image segmentation for biomedical imaging. We choose to use this model as it can yield state-of-the-art results with only few images. The U-net as shown in \autoref{} consists of two parts, the contracting and the expanding path. The first one is used to detect features on an image and the latter to find the locality of these features in the original space. 
+
+\subsection{Loss}
+
+\subsection{Training}
 Example of citing a paper: Adam~\citep{kingma2014adam}
+
+\subsection{}
 
 \section{Results}
 Results are shown here.

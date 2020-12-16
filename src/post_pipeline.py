@@ -1,114 +1,42 @@
 import torch
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import numpy as np
 import os
-import random
+import sklearn.metrics
 
-from PIL import Image
-from itertools import product
-from sklearn.metrics import precision_recall_fscore_support
-from torch.utils.data import DataLoader
-
-from AvailableRooftopDataset import AvailableRooftopDataset
 from model.unet_model import UNet
-from helpers import *
+from helpers import summary_stats
+from visualisation import plot_precision_recall_f1
 from pipeline import load_data
 
 
-## VISUALISATION
-map_rgb = {0: [0, 255, 0], 1: [0, 0, 0], 2: [255, 0, 0], 3: [255, 215, 0]}
-
-# If color values are binary
-COMPARE_MAP_01 = {(2, 0): 0, (0, 0): 1, (1, 1): 2, (1, -1): 3}
-
-# If color values are 3 bytes
-COMPARE_MAP_uint8 = {(254, 0): 0, (0, 0): 1, (255, 255): 2, (255, 1): 3}
-
-
-def compare_labels(true_label, predicted_label):
-    """Outputs an array annotated as TP, FP, TN or FN as ints,
-    according to the chosen COMPARE_MAP"""
-    height, width = true_label.shape
-    comp_array = np.array([predicted_label + true_label, predicted_label - true_label])
-    result = np.empty((height, width), dtype=int)
-    for i, j in product(range(height), range(height)):
-        result[i, j] = COMPARE_MAP_uint8[tuple(comp_array[:, i, j])]
-    return result
-
-
-def show_label_comparison(true_label, predicted_label):
-    """
-    Plots an array annotated with TP, FP, TN and FN
-
-    Parameters
-    ----------
-    true_label : ndarray of 1s and 0s
-        True label.
-    predicted_label : ndarray of 1s and 0s
-        Prediction from the model.
-
-    Returns
-    -------
-    None
-    """
-    comparison = compare_labels(true_label, predicted_label)
-    height, width = comparison.shape
-    # Convert to RGB
-    comparison_rgb = np.empty((height, width, 3), dtype=int)
-    f = lambda i, j: map_rgb[comparison[i, j]]
-
-    for i, j in product(range(height), range(width)):
-        comparison_rgb[i, j, :] = map_rgb[comparison[i, j]]
-
-    plt.imshow(comparison_rgb)
-    TP = mpatches.Patch(color="green", label="TP")
-    TN = mpatches.Patch(color="black", label="TN")
-    FP = mpatches.Patch(color="red", label="FP")
-    FN = mpatches.Patch(color=[255 / 255, 215 / 255, 0], label="FN")
-    plt.legend(handles=[TP, FP, TN, FN], bbox_to_anchor=(1.05, 1), loc="upper left")
-    plt.show()
-
-
-## TESTING (once threshold is chosen)
-def test_model(test_predictions, test_labels, threshold):
-    """Returns evaluation measures over a test set.
-
-    Inputs:
-    ========
-    test_predictions : ndarray
-        Array of ints containing the predictions for each image in the test set.
-        Predictions should be raw (not probabilities).
-    test_labels : ndarray
-        Array of ints containing the true labels for each image in the test set.
-    threshold : float
-        Threshold over which predictions should be decided as 1.
-
-    Returns:
-    ========
-    f1, precision, recall, support : ndarray
-        Evaluation measures for each prediction
-    """
-    n = len(test_predictions)
-    precision = np.zeros(n)
-    recall = np.zeros(n)
-    f1 = np.zeros(n)
-    # support = np.zeros(n) # Isn't useful for binary classification apparently
-
-    pred_probas = 1 / (1 + np.exp(-test_predictions))
-    test_predictions = np.where(pred_probas > threshold, 1, 0)
-    for i, (true, pred) in enumerate(zip(test_labels, test_predictions)):
-        precision[i], recall[i], f1[i], _ = precision_recall_fscore_support(
-            true.flatten(), pred.flatten(), average="binary", zero_division=0
-        )
-    
-    return f1, precision, recall
-
+METRICS = {
+    "accuracy" : sklearn.metrics.accuracy_score,
+    "balanced_accuracy" : sklearn.metrics.balanced_accuracy_score,
+    "average_precision" : sklearn.metrics.average_precision_score,
+    "neg_brier_score" : sklearn.metrics.brier_score_loss,
+    "f1" : sklearn.metrics.f1_score,
+    # "f1_micro" : sklearn.metrics.f1_score,
+    # "f1_macro" : sklearn.metrics.f1_score,
+    # "f1_weighted" : sklearn.metrics.f1_score,
+    # "f1_samples" : sklearn.metrics.f1_score,
+    "neg_log_loss" : sklearn.metrics.log_loss,
+    "precision" : sklearn.metrics.precision_score,
+    "recall" : sklearn.metrics.recall_score,
+    "jaccard" : sklearn.metrics.jaccard_score,
+    "roc_auc" : sklearn.metrics.roc_auc_score,
+    # "roc_auc_ovr" : sklearn.metrics.roc_auc_score,
+    # "roc_auc_ovo" : sklearn.metrics.roc_auc_score,
+    # "roc_auc_ovr_weighted" : sklearn.metrics.roc_auc_score,
+    # "roc_auc_ovo_weighted" : sklearn.metrics.roc_auc_score,
+}
 
 ## VALIDATION
 def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     """Determine the best threshold given validation set and
-    visualise results (precision-recall curve and F1-score against thresholds)
+    visualise results (precision-recall curve and F1-score against thresholds).
+    This is based on the sklearn.metrics.precision_recall_curve function
+    but adapred so that thresholds can be the same for each image (that way
+    summary statistics can be computed).
 
     Inputs:
     ========
@@ -128,7 +56,10 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     best_thresh : float
         The threshold which maximizes some value
     """
-    thresholds = np.linspace(0, 1, n_thresholds)
+    # Don't keep 0 or 1 because they are uninteresting
+    # and they cause issues down the line
+    thresholds = np.linspace(0, 1, n_thresholds)[1:-1]
+    n_thresholds -= 2
     pred_probas = 1 / (1 + np.exp(-predictions))
 
     precision = np.zeros((len(predictions), n_thresholds))
@@ -173,14 +104,17 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
             f1 = 2 * (prec * rec) / (prec + rec)
         f1_scores[i] = np.nan_to_num(f1, 0)
 
-    prec_summary = summary_stats(precision, type="median")
-    rec_summary = summary_stats(recall, type="median")
-    f1_summary = summary_stats(f1_scores, type="median")
+    summary_type = "median"
+    lower_bound = 40
+    prec_summary = summary_stats(precision, type=summary_type, lower_bound=lower_bound)
+    rec_summary = summary_stats(recall, type=summary_type, lower_bound=lower_bound)
+    f1_summary = summary_stats(f1_scores, type=summary_type, lower_bound=lower_bound)
 
     # Estimating what the threshold should be set to
-    f1_mid, f1_lower, f1_upper = (row for row in f1_summary)
+    f1_lower, f1_mid, f1_upper = (row for row in f1_summary)
     # This measure penalises uncertain choices (maximize (mean - spread))
-    idx_best = np.argmax(f1_mid - (f1_upper - f1_lower))
+    # idx_best = np.argmax(f1_mid - (f1_upper - f1_lower))
+    idx_best = np.argmax(f1_mid)
     if plot:
         plot_precision_recall_f1(
             thresholds, prec_summary, rec_summary, f1_summary, idx_best=idx_best
@@ -189,122 +123,79 @@ def find_best_threshold(predictions, labels, n_thresholds, plot=True):
     return precision, recall, f1_scores, thresholds[idx_best]
 
 
-def plot_precision_recall_f1(
-    thresholds,
-    precision_summary,
-    recall_summary,
-    f1_summary,
-    idx_best=None,
-    to_file=False,
-):
-    """Plot precision-recall curve and F1 score against thresholds.
+## TESTING (once threshold is chosen)
+def test_model(test_predictions, test_labels, threshold, *args):
+    """Returns evaluation measures over a test set.
 
     Inputs:
     ========
-    thresholds : ndarray
-        Thresholds that give rise to precision, recall and F1 values.
-    precision_summary : ndarray
-        Contains summary statistics of precision for each threshold:
-        First row is mid-point (e.g. mean or median)
-        Second row is lower bound (e.g. mean - std or first quartile)
-        Third row is upper bound (e.g. mean + std or third quartile)
-    recall_summary : ndarray
-        Contains summary statistics of recall for each threshold:
-        First row is mid-point (e.g. mean or median)
-        Second row is lower bound (e.g. mean - std or first quartile)
-        Third row is upper bound (e.g. mean + std or third quartile)
-    f1_summary : ndarray
-        Contains summary statistics of F1-score for each threshold:
-        First row is mid-point (e.g. mean or median)
-        Second row is lower bound (e.g. mean - std or first quartile)
-        Third row is upper bound (e.g. mean + std or third quartile)
-    idx_best : int, optional
-        Index of the best threshold.
-        If None then no information is added to the plots.
+    test_predictions : ndarray
+        Array of ints containing the predictions for each image in the test set.
+        Predictions should be raw (not probabilities).
+    test_labels : ndarray
+        Array of ints containing the true labels for each image in the test set.
+    threshold : float
+        Threshold over which predictions should be decided as 1.
+    args : strings
+        Metrics to use for testing: the list of accepted strings can be found at
+        https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter.
+
 
     Returns:
     ========
-    None
+    results : ndarray
+        Test results; rows correspond to datapoints
+        and columns correspond to metrics (in the order they were passed)
     """
-    precision_mid, precision_lower, precision_upper = (row for row in precision_summary)
-    recall_mid, recall_lower, recall_upper = (row for row in recall_summary)
-    f1_mid, f1_lower, f1_upper = (row for row in f1_summary)
+    results = np.zeros((len(test_predictions), len(args)))
+    scorings = [METRICS[s] for s in args]
 
-    plt.figure(1)
-    ax_f1 = plt.axes()
-    ax_f1.fill_between(thresholds, f1_lower, f1_upper, alpha=0.6)
-    ax_f1.plot(thresholds, f1_mid)
-    plt.grid(True)
-    plt.xlabel("Thresholds")
-    plt.ylabel(r"$F_1$-score")
-    if idx_best:
-        # Annotate with best estimator
-        best_thresh = thresholds[idx_best]
-        plt.text(best_thresh, f1_mid[idx_best], "{:.3f}".format(f1_mid[idx_best]))
-        plt.text(best_thresh + 0.05, 0, "{:.3f}".format(best_thresh))
-        plt.axvline(x=best_thresh, ymin=0, ymax=1, color="black", linestyle="--")
-        # plt.axvline(x=best_thresh, ymin=0, ymax=f1_mid[idx_best], color="black", linestyle="--")
+    pred_probas = 1 / (1 + np.exp(-test_predictions))
+    test_predictions = np.where(pred_probas > threshold, 1, 0)
+    for i, (true, pred) in enumerate(zip(test_labels, test_predictions)):
+        true = true.flatten()
+        pred = pred.flatten()
+        for j, scoring in enumerate(scorings):
+            results[i, j] = scoring(true, pred)
 
-    plt.figure(2)
-    ax_prec_rec = plt.axes()
-    ax_prec_rec.fill_between(rec_mid, prec_lower, prec_upper, alpha=0.6)
-    ax_prec_rec.plot(rec_mid, prec_mid)
-    # Should I use the lower and upper rec??
-    # What's the significance of this statistically?
-    # ax_prec_rec.plot(rec_lower, prec_lower)
-    # ax_prec_rec.plot(rec_upper, prec_upper)
-    # ax_prec_rec.fill_between(rec_lower, prec_lower, prec_mid, alpha=0.6)
-    # ax_prec_rec.fill_between(rec_upper, prec_mid, prec_upper, alpha=0.6)
-    plt.grid(True)
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    if idx_best:
-        # Annotate with best estimator
-        rec_best = rec_mid[idx_best]
-        prec_best = prec_mid[idx_best]
-        ax_prec_rec.plot([rec_best], [prec_best], "ro")
-        plt.text(
-            rec_best + 0.02,
-            prec_best + 0.02,
-            "({:.3f}, {:.3f})".format(rec_best, prec_best),
-        )
-
-    plt.show()
+    return results
 
 
 def main(
-    model_name, prop_noPV, from_file=True, validation=True, test=True, verbose=True, plot=True
+    model_name,
+    from_file=True,
+    to_file=False,
+    validation=True,
+    test=["precision", "recall", "f1", "accuracy", "jaccard"],
+    plot=True,
 ):
     """
     Inputs:
     ========
     model_name : str
         Which model to do things with. This is assumed to be both the name of the directory in which parameters are stored, and the name of the parameters file.
-    prop_noPV : float
-        If generating data, what proportion of the noPV data should be included. This is intended to be the same proportion that the model was trained with.
-        Should be between 0 and 1.
     from_file : bool
         Whether data should be loaded from a file; otherwise it will be generated.
         The file should:
             - be in the same directory as the model parameters
             - be called "data.npz"
             - contain 4 arrays: "val_predictions", "val_labels", "test_predictions" and "test_labels".
-        If it's generated it'll be saved in a file in the model directory, according to the form given previously.
         Labels are expected to be floats and will be thresholded.
         Predictions are expected to be raw (not probabilities).
+    to_file : bool
+        If data is generated (not loaded from a file), whether to save to a file in the model directory, according to the form described in from_file.
+        Irrelevant when from_file is set to True.
     validation : bool
         Whether to go through validation steps (to find the best threshold).
-    test : bool
-        Whether to go through testing steps (evaluate the model with a given threshold).
+    test : list of str
+        Which metrics to use for testing (evaluate the model with a given threshold).
         The results are stored in a txt file called "test_results.txt" in the model directory.
-    verbose : bool
-        Whether to give information during run.
+        If empty then testing is skipped.
     plot : bool
         Whether to show plots during run.
     """
     model_dir = os.path.join(dir_models, model_name)
     params_file = os.path.join(model_dir, model_name)
-    data_file = os.path.join(model_dir, "data.npz")
     new_section = "=" * 50
 
     print("Importing model parameters from {}".format(params_file))
@@ -313,6 +204,8 @@ def main(
     model = model.to(device)
     model.load_state_dict(torch.load(params_file, map_location=torch.device("cpu")))
 
+    # File where data are stored, or will be if they aren't already
+    data_file = os.path.join(model_dir, "data.npz")
     print(new_section)
     if from_file:
         print("Loading data")
@@ -320,6 +213,7 @@ def main(
         val_predictions, val_labels, test_predictions, test_labels = arrays.values()
     else:
         print("Generating data")
+<<<<<<< HEAD
         _, validation_set, test_set = load_data(
             dir_data=dir_data,
             prop_noPV=prop_noPV,
@@ -327,28 +221,46 @@ def main(
             batch_size=100,
             train_percentage=0.7,
             validation_percentage=0.15,
+=======
+        dir_data_validation = os.path.join(dir_data, "validation")
+        dir_data_test = os.path.join(dir_data, "test")
+
+        _, validation_dl, test_dl = load_data(
+            dir_data_training="",
+            dir_data_validation=dir_data_validation,
+            dir_data_test=dir_data_test,
+            prop_noPV_training=0,  # Has no impact
+            min_rescale_images=0,  # Has no impact
+            batch_size=100,  # All of them
+>>>>>>> b9dc3840f51b9eb11b8e459b45a0e55204fc0873
         )
 
         model.eval()
         with torch.no_grad():
-            # Get images and labels from both sets
-            val_images, val_labels = next(iter(validation_set))
-            test_images, test_labels = next(iter(test_set))
+            # Get images and labels from both DataLoaders
+            val_images, val_labels = next(iter(validation_dl))
+            test_images, test_labels = next(iter(test_dl))
             val_images = val_images.to(device, dtype=torch.float32)
             test_images = test_images.to(device, dtype=torch.float32)
             # Make predictions (predictions are not probabilities at this stage)
             print("Running model on data")
             val_predictions = model(val_images)
             test_predictions = model(test_images)
+            # Convert to numpy arrays for computing
+            val_predictions = np.squeeze(val_predictions.cpu().numpy(), axis=0)
+            val_labels = np.squeeze(val_labels.cpu().numpy(), axis=0)
+            test_predictions = np.squeeze(test_predictions.cpu().numpy(), axis=0)
+            test_labels = np.squeeze(test_labels.cpu().numpy(), axis=0)
             # Save to file as numpy arrays
-            print("Saving results to file")
-            np.savez_compressed(
-                data_file,
-                val_predictions=np.squeeze(val_predictions.cpu().numpy(), axis=1),
-                val_labels=val_labels.cpu().numpy(),
-                test_predictions=np.squeeze(test_predictions.cpu().numpy(), axis=1),
-                test_labels=test_labels.cpu().numpy(),
-            )
+            if to_file:
+                print("Saving results to file")
+                np.savez_compressed(
+                    data_file,
+                    val_predictions=val_predictions,
+                    val_labels=val_labels,
+                    test_predictions=test_predictions,
+                    test_labels=test_labels,
+                )
 
     threshold_true = 0.5
     val_labels = np.where(val_labels > threshold_true, 1, 0)
@@ -358,57 +270,52 @@ def main(
         print(new_section)
         print("Validation starting")
         _, _, _, best_threshold = find_best_threshold(
-            val_predictions, val_labels, n_thresholds=100, plot=plot
+            val_predictions, val_labels, n_thresholds=101, plot=plot
         )
         print(f"Found best threshold to be {best_threshold:.4f}")
 
     if test:
         print(new_section)
-        print("Testing starting")
-        f1, precision, recall = test_model(
-            test_predictions, test_labels, best_threshold
-        )
+        print("Testing starting with metrics:")
+        print(", ".join(test))
+        results = test_model(test_predictions, test_labels, best_threshold, *test)
+        print(results)
         summary_type = "median"
         results_file = os.path.join(model_dir, "test_results.txt")
-        results = np.column_stack([summary_stats(x, type=summary_type) for x in [f1, precision, recall]])
+        # results = np.column_stack([summary_stats(x, type=summary_type) for x in [f1, precision, recall]])
+        results_summary = np.transpose(summary_stats(results, type=summary_type))
         print(f"Summary statistics are based on the {summary_type}")
-        print("Results (mid-point, lower, upper):")
-        print(f"\tBest threshold = {best_threshold}")
-        for i, measure in enumerate(["F1-score", "Precision", "Recall"]):
-            print("\t{}: {}".format(measure, results[:, i]))
+        print("Results (lower, mid-point, upper):")
+        print(f"\tBest threshold = {best_threshold:.4f}")
+        for i, measure in enumerate(test):
+            print("\t{}: {}".format(measure, results_summary[i, :]))
         print(new_section)
         print("Saving results to {}".format(results_file))
         np.savetxt(
             results_file,
-            results,
+            results_summary,
             delimiter=" ",
-            header=f"Threshold: {best_threshold}\nf1_score  precision  recall",
+            header=f"Threshold: {best_threshold}\n{'  '.join(test)}",
         )
-        
+
     print("\n")
 
 
 if __name__ == "__main__":
     dir_models = "/home/auguste/modelsNewData/"
     dir_data = "/raid/machinelearning_course/data"
+    #dir_models = "../stuff/models_data/"
+    #dir_data = "../data/data/"
 
-    noPV_percentages = dict(zip(os.listdir(dir_models), [0 for _ in range(1000)]))
-    noPV_percentages[
-        "Adam_e_3_20percentnoPV_BCEwithweights_epochs_80_rescheduledat50_toe4"
-    ] = 0.2
-    noPV_percentages[
-        "Adam_e_3_100percentnoPV_BCEwithweights_epochs_80_rescheduledat50_toe4"
-    ] = 1
-    # print(noPV_percentages)
+    test = ["precision", "recall", "f1", "accuracy", "jaccard"]
 
-    # for model in noPV_percentages.keys():
+    # for model in os.listdir(dir_models):
     model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
     main(
         model_name=model,
-        prop_noPV=noPV_percentages[model],
-        from_file=False,
+        from_file=True,  # Should probably be put to a filename
+        to_file=True,
         validation=True,
-        test=True,
-        verbose=True,
-        plot=False
+        test=test,
+        plot=True,
     )
