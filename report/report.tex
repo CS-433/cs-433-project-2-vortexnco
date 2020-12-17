@@ -94,7 +94,7 @@ As we don’t have a lot of samples, we apply a random transformation on each sa
 \subsubsection{Training, validation, test split}
 We split the dataset into a train, validation and test set in the following proportion 70\%/15\%/15\%.
 
-The transformation mentioned above is only applied to the training set as we want to test our models on the original distribution. For the same reason, we use the original ratio of PV images / no-PV images for the validation set and the test set and alter this ration only when training the model.
+The transformation mentioned above is only applied to the training set as we want to test our models on the original distribution. For the same reason, we use the original ratio of PV images / no-PV images for the validation set and the test set and alter this ratio only when training the model.
 
 \subsection{U-Net}
 Computer vision tasks are commonly tackled using convolutional networks. 
@@ -139,7 +139,6 @@ Our model has to classify each pixel into 2 classes, either the area is availabl
     \item Weighted binary cross entropy (wBCE)
     \item L1 loss
 \end{itemize}
-Because the U-Net outputs an arbitrary value in $\mathbb{R}$ for each pixel, we apply a sigmoid layer before computing the loss.
 
 The weighted binary cross entropy can be used when there is a significant class imbalance, which is indeed the case here:
 most pixels are not available for rooftop solar panels. 
@@ -190,7 +189,7 @@ We use the three losses mentioned in \autoref{loss}. For the weighted cross entr
 We try different constant values of the learning rate of the optimizer. However, small values tend to reach a better minimum of the loss function but very slowly, while big values are faster but don't guarantee a good convergence. We propose to use a learning rate scheduler to combine the best of both. We start training with a larger learning rate and decrease it during training.
 
 \subsection{Tuning threshold on probability after training model} \label{ssec:threshold}
-Since the model outputs weights (real numbers in all of $\mathbb{R}$),
+Since the model outputs weights (real numbers in all of $\mathbb{R}$) for each pixel,
 we use a sigmoid to transform the weights into numbers in $[0,1]$.
 Once this is done, we still need to find the best decision boundary---the threshold probability $\theta$ over which a pixel is decided to be available for PV.
 For that we perform a grid-search over thresholds, computing the $F_1$-score over our validation set 
@@ -246,6 +245,8 @@ That way, though we lose out on the statistical power
 that computing for each image might bring, we are
 certain that no undefined behaviour will occur.
 
+Using this strategy, we could compute precision-recall curves and maximise the $F_1$-score. Such a precision-recall curve is shown in \autoref{fig:precision_recall}.
+
 \subsection{Testing}
 Once the best threshold is found, we use this to produce
 the final model; we apply this on our test set and compute
@@ -263,77 +264,28 @@ for PV, this tightness is a very relevant metric.
 
 \section{Results}
 After selecting appropriate learning rates we choose to train the following models:
+\begin{table}
+    \begin{center}
+        \begin{tabular}{||c | c c c c||}
+             \hline
+             \input{report/model_parameters}
+        \end{tabular}
+    \end{center}
+    \caption{Hyperparameter combinations for the different models we consider. We write two values for the learning rate, when we use learning rate rescheduling. 
+    }
+    \label{tbl:model_parameters}
+\end{table} 
 
-\begin{center}
-    \begin{tabular}{||c | c  | c | c | c ||} 
-        \hline
-        N\degree & Optimizer & $\%$noPV & Learning rate & Loss \\ [0.5ex] 
-        \hline\hline
-        1 & ADAM & $0\% $ & $10^{-3}$ & wBCE \\
-        \hline
-        2 & ADAM & $0\% $ & $10^{-4}$ & wBCE \\
-        \hline
-        3 & ADAM & $0\% $ & $10^{-3}$ and $10^{-4}$ & wBCE \\
-        \hline
-        4 & ADAM & $25\% $ & $10^{-3}$  & wBCE \\
-        \hline
-        5 & ADAM & $25\% $ & $10^{-4}$ & wBCE \\
-        \hline
-        6 & ADAM & $25\% $ & $10^{-3}$ and $10^{-4}$ & wBCE \\
-        \hline
-        7 & ADAM & $50\% $ & $10^{-3}$ & wBCE \\
-        \hline
-        8 & ADAM & $50\% $ & $10^{-4}$ & wBCE \\
-        \hline
-        9 & ADAM & $50\% $ & $10^{-3}$ and $10^{-4}$ & wBCE \\
-        \hline
-        10 & SGD & $0\% $ & $10^{-3}$ & wBCE \\
-        \hline
-        11 & SGD & $0\% $ & $10^{-2}$ & wBCE \\
-        \hline
-        12 & SGD & $0\% $ & $10^{-2}$ and $10^{-3}$ & wBCE \\
-        \hline
-        13 & SGD & $25\% $ & $10^{-3}$ & wBCE \\
-        \hline
-        14 & SGD & $25\% $ & $10^{-2}$ & wBCE \\
-        \hline
-        15 & SGD & $25\% $ & $10^{-2}$ then $10^{-3}$ & wBCE \\
-        \hline
-        16 & SGD & $50\% $ & $10^{-3}$ & wBCE \\
-        \hline
-        17 & SGD & $50\% $ & $10^{-2}$ & wBCE \\
-        \hline
-        18 & SGD & $50\% $ & $10^{-2}$ and $10^{-3}$ & wBCE \\
-        \hline
-        19 & ADAM & $0\% $ & $10^{-3}$ and $10^{-4}$ & BCE \\
-        \hline
-        20 & ADAM & $25\% $ & $10^{-3}$ and $10^{-4}$ & BCE \\
-        \hline
-        21 & ADAM & $50\% $ & $10^{-3}$ and $10^{-4}$ & BCE \\
-        \hline
-        22 & ADAM & $0\% $ & $10^{-3}$ and $10^{-4}$ & L1 \\
-        \hline
-        23 & ADAM & $25\% $ & $10^{-3}$ and $10^{-4}$ & L1 \\
-        \hline
-        24 & ADAM & $50\% $ & $10^{-3}$ and $10^{-4}$ & L1 \\
-        \hline
-        
-       % [1ex] 
-        \hline
-    \end{tabular}
-\end{center}
-We write two values for the learning rate, when we use learning rate rescheduling. 
+
 
 We notice that rescheduling the learning rate during the training only once after 50 epochs gives the best results.
 We also notice that when rescheduling, we need to shorten the training to 80 epochs to avoid overfitting,
 whereas with a constant learning rate we train for 100 epochs to have the best results before overfitting.
 
-% Better in methods or results? 
 Each model is run on a validation set to perform a grid-search of the best threshold,
 and the model is then applied with that threshold to a test set.
 Various standard classification metrics are computed and collected in \autoref{tbl:test_results}.
 
-% Remove accuracy and thresholds 
 \begin{table}
     \begin{center}
         \begin{tabular}{||c | c c c c||}
@@ -346,7 +298,9 @@ Various standard classification metrics are computed and collected in \autoref{t
     \label{tbl:test_results}
 \end{table}
 
-We choose the model 21 as the best model based on the $F_1$-score. We note that basing our choice on the IoU metric would also result in the same chosen method. The train and validation error during training are shown in \autoref{fig:train_validation_errors}. We see that there are some peaks but their frequency and intensity decreases after the rescheduling after 50 epochs. This suggests that using the learning rate scheduling was a good idea. \autoref{fig:precision_recall} shows how we set the threshold for this model.
+We choose the model 21 as the best model based on the $F_1$-score. We note that basing our choice on the IoU metric would not change our choice.
+The train and validation error during training are shown in \autoref{fig:train_validation_errors}.
+We see that there are some peaks but their frequency and intensity decreases after the rescheduling after 50 epochs. This suggests that using the learning rate scheduling was a good idea. \autoref{fig:precision_recall} shows how we set the threshold for this model.
 
 
 
@@ -358,7 +312,8 @@ We choose the model 21 as the best model based on the $F_1$-score. We note that 
         \label{fig:train_validation_errors}
     \end{minipage}\quad
     \begin{minipage}[b]{.45\columnwidth}
-        \includegraphics[width=\columnwidth]{report/images/placeholder_precision_recall.png}
+        \includegraphics[width=\columnwidth]{report/images/plots/prec_rec.pdf}
+        %\input{report/images/plots/prec_rec}
         \caption{Precision recall plot placeholder that needs to be changed}
         \label{fig:precision_recall}
     \end{minipage}
@@ -366,7 +321,7 @@ We choose the model 21 as the best model based on the $F_1$-score. We note that 
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=.85\columnwidth]{report/images/prediction.png}
+    \includegraphics[width=\columnwidth]{report/images/prediction.png}
     \caption{Prediction of the best model (no. 21) on an image from the Test set using a threshold of 0.37.}
     \label{fig:prediction}
 \end{figure}
@@ -383,7 +338,7 @@ We also note that training with more noPV images generally gives better results.
 
 Depending on the use case for which this model would be used, it can make more sense to use a different metric to set the threshold value for decisions. If the user wants to minimize the false negative rate, in order to make sure not to underestimate the available area for solar panels, we would suggest to decrease the threshold and increase it in the opposite scenario.
 
-%Mention that we could fine tune more but we had imited access to a GPU that we had to share.
+Because we are using a GPU from the lab that is shared with other students running their own experiments we are limited in our computational resources, more fine-tuning of the hyperparameters, especially the learning rate and its scheduler could further increase the performance of our model.
 
 \section{Conclusion}
 In this project we propose a model to detect rooftop solar panels in aerial images based on a U-Net. When applied on a test set of images that have not been preprocessed (e.g. removing noPV images), we get a $F_1$-score of $0.77$ and an IoU score of 0.62. 
@@ -391,7 +346,7 @@ In our analysis, we fix the decision threshold for this model to $0.37$ but we a
 The U-Net could give better performances with more labelled data, this is not readily available but we give a tool that enables to label new data more easily.
 
 \section*{Acknowledgements}
-We would like to thank Pr. Castello and Simon Roquette from his lab for their guidance and valuable advice during this project. We would also like to thank, Riccardo Cadei, Raphael Attias, Shasha Jiang, the members of the other group of the ML course working on the same problem as us with whom we shared our labelled data.
+We would like to thank Prof. Castello and Simon Roquette from his lab for their guidance and valuable advice during this project. We would also like to thank, Riccardo Cadei, Raphael Attias and Shasha Jiang, the members of the other group of the ML course working on the same problem as us with whom we shared our labelled data.
 \bibliographystyle{ieeetr}
 \bibliography{report}
 
