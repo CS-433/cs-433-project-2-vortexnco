@@ -21,7 +21,7 @@ In this project, we provide Python code to detect rooftop available surface for 
     - `post_processing_example.ipynb` Jupyter Notebook that shows how the threshold for decisions is chosen on the validation set and gives examples of some predictions.
 
     The Jupyter Notebooks are further explained in [the following section](#how-to-reproduce-the-results).
-- `labelling_tool/` contains the adapted labelling tool based on OpenCV to creates the labels.
+- `labelling_tool/` contains the adapted labelling tool based on OpenCV to create the labels.
 - `report/` contains various files to cret the report for this project.
 - `data/` contains the data for this project:
     - `train/` training data, randomly chosen 70% of the data
