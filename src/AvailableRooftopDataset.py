@@ -12,8 +12,8 @@ class AvailableRooftopDataset(Dataset):
 
     def __init__(self, dir_PV, dir_noPV, dir_labels, transform=None, prop_noPV=0.0):
         """
-        Inputs:
-        ========
+        Parameters
+        ----------
         dir_PV : str
             Directory with "PV" files.
         dir_noPV : str

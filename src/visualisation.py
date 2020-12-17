@@ -17,15 +17,15 @@ def compare_labels(true_label, predicted_label):
     """Outputs an array annotated as TP, FP, TN or FN as ints,
     according to the chosen COMPARE_MAP
 
-    Inputs:
-    ========
+    Parameters
+    ----------
     true_label : ndarray
         True label for the image; only contains 1s and 0s.
     predicted_label : ndarray
         Prediction from the model for the image; only contains 1s and 0s.
 
-    Returns:
-    ========
+    Returns
+    -------
     result : ndarray
         Annotations indicating whether each pixel in the predicted label is a
         true positive, true negative, false positive or false negative.
@@ -44,8 +44,8 @@ def show_full_comparisonTestGenerator(
     """
     Creates a generator for plots vizualizing the results of the model.
 
-    Inputs:
-    ========
+    Parameters
+    ----------
     model :
         Model to use.
     threshold_prediction : float, optional
@@ -54,14 +54,14 @@ def show_full_comparisonTestGenerator(
         Directory of Test data. The default is "../data/test".
 
     Returns:
-    ========
+    -------
     None
     """
     _, _, test_dl = load_data(
         prop_noPV_training=0.0,  # dummy value since only used in Train
         min_rescale_images=0.6,  # dummy value since only used in Train
         batch_size=1,
-        dir_data_training="",  # empty strings to avoid creating train Dataloader
+        dir_data_training="",    # empty strings to avoid creating train Dataloader
         dir_data_validation="",  # empty string to avoid creating validation DataLoader
         dir_data_test=dir_data_test,
     )
@@ -83,12 +83,12 @@ def show_full_comparisonTestGenerator(
         axs[0, 0].imshow(image_numpy)
         axs[0, 0].set_title("Image")
 
-        # Sgowing True label
+        # Showing True label
         label_numpy = labels[i].cpu().numpy()
         axs[0, 1].imshow(label_numpy)
         axs[0, 1].set_title("True label")
 
-        # transforming output of model to probabilities
+        # Transforming output of model to probabilities
         predicted_numpy = np.squeeze(predictions.cpu().numpy()[i])
         predicted_numpy = 1 / (1 + np.exp(-predicted_numpy))
 
@@ -111,8 +111,8 @@ def show_label_comparison(true_label, predicted_label, ax):
     """
     Plots an array annotated with TP, FP, TN and FN.
 
-    Inputs:
-    ========
+    Parameters
+    ----------
     true_label : ndarray
         True label for the image; only contains 1s and 0s.
     predicted_label : ndarray
@@ -120,8 +120,8 @@ def show_label_comparison(true_label, predicted_label, ax):
     ax :
         Axe object on which to plot the comparison
 
-    Returns:
-    ========
+    Returns
+    -------
     None
     """
     comparison = compare_labels(true_label, predicted_label)
@@ -155,8 +155,8 @@ def plot_precision_recall_f1(
         Second row is mid-point (e.g. mean or median)
         Third row is upper bound (e.g. mean + std or third quartile)
 
-    Inputs:
-    ========
+    Parameters
+    ----------
     thresholds : ndarray
         Thresholds that give rise to precision, recall and F1 values.
     precision_summary : ndarray
@@ -169,8 +169,8 @@ def plot_precision_recall_f1(
         Index of the best threshold.
         If None then no information is added to the plots.
 
-    Returns:
-    ========
+    Returns
+    -------
     None
     """
     precision_lower, precision_mid, precision_upper = (row for row in precision_summary)

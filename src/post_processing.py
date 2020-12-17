@@ -40,8 +40,8 @@ def get_metrics():
 def summary_stats(array, axis=0, type="median", lower_bound=None):
     """Summary statistics of array of given type.
 
-    Inputs:
-    =========
+    Parameters
+    ----------
     array : ndarray
         Array to summarize.
     axis : int, optional
@@ -55,13 +55,13 @@ def summary_stats(array, axis=0, type="median", lower_bound=None):
         If type is "mean", this is how many standard deviations to go away from the mean.
         If type is "median", this is the lower percentile (<50).
 
-    Raises:
-    =========
+    Raises
+    -------
     NotImplementedError
         When the type is not recognized.
 
-    Returns:
-    =========
+    Returns
+    -------
     summary : ndarray
         Contains summary statistics of array for each column:
         First row is lower bound (e.g. mean - std or first quartile)
@@ -95,8 +95,8 @@ def precision_recall_fscore(true, pred_probas, thresholds):
     """Compute the precision, recall and F1-score of a prediction,
     for different threshold probabilities.
 
-    Inputs:
-    ========
+    Parameters
+    ----------
     true : ndarray
         True label (binary array).
     pred_probas : ndarray
@@ -104,8 +104,8 @@ def precision_recall_fscore(true, pred_probas, thresholds):
     thresholds : iterable
         Thresholds to compute metrics for. Must be between 0 and 1.
 
-    Returns:
-    =========
+    Returns
+    -------
     prec, rec, f1 : ndarrays
         Precision, recall and F1-score for each threshold.
     """
@@ -160,8 +160,8 @@ def find_best_threshold(predictions, labels, n_thresholds, concat, plot):
     but adapred so that thresholds can be the same for each image (that way
     summary statistics can be computed).
 
-    Inputs:
-    ========
+    Parameters
+    ----------
     predictions : ndarray
         Model predictions on validation set.
     labels : ndarray
@@ -173,8 +173,8 @@ def find_best_threshold(predictions, labels, n_thresholds, concat, plot):
     plot : bool
         Whether to plot results or not.
 
-    Returns:
-    ========
+    Returns
+    -------
     precision, recall, f1_scores : ndarray
         Evaluation measures for each threshold, for each image
     best_thresh : float
@@ -230,8 +230,8 @@ def find_best_threshold(predictions, labels, n_thresholds, concat, plot):
 def test_model(test_predictions, test_labels, threshold, concat, *args):
     """Returns evaluation measures over a test set.
 
-    Inputs:
-    ========
+    Parameters
+    ----------
     test_predictions : ndarray
         Array of ints containing the predictions for each image in the test set.
         Predictions should be raw (not probabilities).
@@ -245,8 +245,8 @@ def test_model(test_predictions, test_labels, threshold, concat, *args):
         Metrics to use for testing: the list of accepted strings is METRICS.keys().
         See https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter.
 
-    Returns:
-    ========
+    Returns
+    -------
     results : ndarray
         Test results; rows correspond to datapoints
         and columns correspond to metrics (in the order they were passed)
@@ -284,8 +284,8 @@ def main(
     plot=True,
 ):
     """
-    Inputs:
-    ========
+    Parameters
+    ----------
     model_name : str
         Which model to do things with. This is assumed to be both the name of the directory in which parameters are stored, and the name of the parameters file.
     from_file : bool
