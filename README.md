@@ -37,7 +37,7 @@ In this project, we provide Python code to detect rooftop available surface for 
         - `PV/` .png PV images.
         - `noPV/` .png noPV images.
         - `labels/` .png labels of PV images.
-- `saved_models/` contains the saved_model parameters.
+- `saved_models/` contains folder for each model with its saved_model parameters.
 
 ### How to reproduce the results?
 
