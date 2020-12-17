@@ -13,6 +13,6 @@ data/
 *.txt
 
 __pycache__/
-stuff/
+saved_models/
 round_num
 post_processing_example.py
