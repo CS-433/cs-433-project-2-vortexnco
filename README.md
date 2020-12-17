@@ -41,8 +41,9 @@ In this project, we provide Python code to detect rooftop available surface for 
 
 ### How to reproduce the results?
 
-All results displayed in the report can be obtained by running the various Jupyter Notebooks. In each of them, the user only has to run the cells, random seeds are already set. The data can be obtained [here TODO add link](www.aaa.ch) and the model parameters of our best model can be obtained [here TODO add link](www.aaa.ch).
+All results displayed in the report can be obtained by running the various Jupyter Notebooks. In each of them, the user only has to run the cells, random seeds are already set. The data can be obtained [here](https://drive.switch.ch/index.php/s/rLs7MnYr5mgp2cS) and the model parameters of our best model can be obtained [here](https://drive.switch.ch/index.php/s/21F8TGvd8UbCPJc).
 
+data (zipped file): 
 - `dataset_vizualization.ipynb`<br/>
 This Jupyter Notebook shows examples of the data and what transformations are applied to it TODO @Ghali put some details.
 
