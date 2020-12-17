@@ -18,7 +18,7 @@ In this project, we provide Python code to detect rooftop available surface for 
     - `visualisation.py` code to vizualize the predictions of the model.
     - `dataset_vizualization.ipynb` Jupyter Notebook that shows images and labels and the transformations applied to them.
     - `training_example.ipynb` Jupyter Notebook that shows how the best model is trained.
-    - `post_processing_example.ipynb` Jupyter Notebook that shows how the threshold for decisions is chosen on the validation set and gives examples of some predictions.
+    - `post_processing_example.ipynb` Jupyter Notebook that shows how the threshold for decisions is chosen on the validation set and gives examples of some predictions and standard metrics on the test set.
 
     The Jupyter Notebooks are further explained in [the following section](#how-to-reproduce-the-results).
 - `labelling_tool/` contains the adapted labelling tool based on OpenCV to create the labels.
@@ -49,5 +49,4 @@ This Jupyter Notebook shows examples of the data and what transformations are ap
 This Jupyter Notebook trains a model with specific hyperparameters that can be set up by the user. The default values in the notebook will train the best model presented in the report. Running this notebook locally without a GPU takes significant time, so a notebook that has already been run is available on Google Colab. After training the model, its weights will be saved in the `saved_models` folder.
 
 - `post_processing_example.ipynb`<br/>
-This Jupyter Notebook shows how the threshold for making a decision based on the model outputs is chosen. By default it will do this for the best model from the report. A user can repeat these steps for any other model that has been trained and whose weights have been saved. The notebook then shows examples of predictions.
-TODO @Auguste update this explanation
+This Jupyter Notebook shows how the threshold for making a decision based on the model outputs is chosen. By default it will do this for the best model from the report. A user can repeat these steps for any other model that has been trained and whose weights have been saved. The notebook then shows examples of predictions and standard performance metrics from the test set.
