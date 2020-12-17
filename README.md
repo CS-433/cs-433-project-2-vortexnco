@@ -44,6 +44,7 @@ In this project, we provide Python code to detect rooftop available surface for 
     - `model2/`
         - `model2` Parameters for model 2.
         - `data.npz` Validation and test data with predictions of model 2.
+        
 Note that the parameters file must have the same name as its parent folder.
 
 ### How to reproduce the results?
