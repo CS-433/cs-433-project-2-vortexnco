@@ -25,15 +25,15 @@ def load_data(
         Minimum proportion of the image to keep for the RandomResizedCrop transform.
     batch_size : int
         Number of samples per batch in the DataLoaders.
-    dir_data_training : str
+    dir_data_training : str, optional
         Directory where the folders "images/", "labels/" and "noPV/" are for the training set.
-        If empty, the data is not generated.
-    dir_data_validation : str
+        If empty, the data is not generated. The default is "".
+    dir_data_validation : str, optional
         Directory where the folders "images/", "labels/" and "noPV/" are for the validation set.
-        If empty, the data is not generated.
-    dir_data_test : str
+        If empty, the data is not generated. The default is "".
+    dir_data_test : str, optional
         Directory where the folders "images/", "labels/" and "noPV/" are for the test set.
-        If empty, the data is not generated.
+        If empty, the data is not generated. The default is "".
 
     Returns
     -------
