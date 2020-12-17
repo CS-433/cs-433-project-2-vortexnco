@@ -37,14 +37,14 @@ In this project, we provide Python code to detect rooftop available surface for 
         - `PV/` .png PV images.
         - `noPV/` .png noPV images.
         - `labels/` .png labels of PV images.
-- `saved_models/` contains folder for each model with its saved_model parameters.
+- `saved_models/` contains folders for each model with its saved_model parameters.
 
 ### How to reproduce the results?
 
 All results displayed in the report can be obtained by running the various Jupyter Notebooks. In each of them, the user only has to run the cells, random seeds are already set. The data can be obtained [here](https://drive.switch.ch/index.php/s/rLs7MnYr5mgp2cS) and the model parameters of our best model can be obtained [here](https://drive.switch.ch/index.php/s/21F8TGvd8UbCPJc).
 
 - `dataset_vizualization.ipynb`<br/>
-This Jupyter Notebook shows examples of the data with their transforms (for the train set). The computation of the weights used for the w-BCE are also shown.
+This Jupyter Notebook shows examples of the data with their transforms (for the train set). The computation of the weights used for the w-BCE is also shown.
 
 - `training_example.ipynb`<br/>
 This Jupyter Notebook trains a model with specific hyperparameters that can be set up by the user. The default values in the notebook will train the best model presented in the report. Running this notebook locally without a GPU takes significant time, so a notebook that has already been run is available on Google Colab. After training the model, its weights will be saved in the `saved_models` folder.
