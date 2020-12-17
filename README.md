@@ -16,7 +16,7 @@ In this project, we provide Python code to detect rooftop available surface for 
     - `post_processing.py` code to select the the threshold for decisions after the model has been trained and to evaluate on various metrics on the validation or test set.
     - `training.py` code to train the U-Net.
     - `visualisation.py` code to vizualize the predictions of the model.
-    - `dataset_vizualization.ipynb` Jupyter Notebook that shows images and labels and the transformations applied to them.
+    - `dataset_vizualisation.ipynb` Jupyter Notebook that shows images and labels with their transforms & show the computation of the weights for the w-BCE loss.
     - `training_example.ipynb` Jupyter Notebook that shows how the best model is trained.
     - `post_processing_example.ipynb` Jupyter Notebook that shows how the threshold for decisions is chosen on the validation set and gives examples of some predictions and standard metrics on the test set.
 
@@ -41,10 +41,10 @@ In this project, we provide Python code to detect rooftop available surface for 
 
 ### How to reproduce the results?
 
-All results displayed in the report can be obtained by running the various Jupyter Notebooks. In each of them, the user only has to run the cells, random seeds are already set. The data can be obtained [here TODO add link](www.aaa.ch) and the model parameters of our best model can be obtained [here TODO add link](www.aaa.ch).
+All results displayed in the report can be reproduced by running the various Jupyter Notebooks. In each of them, the user only has to run the cells, random seeds are already set. The data can be obtained [here TODO add link](www.aaa.ch) and the model parameters of our best model can be obtained [here TODO add link](www.aaa.ch).
 
 - `dataset_vizualization.ipynb`<br/>
-This Jupyter Notebook shows examples of the data and what transformations are applied to it TODO @Ghali put some details.
+This Jupyter Notebook shows examples of the data with their transforms (for the train set). The computation of the weights used for the w-BCE are also shown.
 
 - `training_example.ipynb`<br/>
 This Jupyter Notebook trains a model with specific hyperparameters that can be set up by the user. The default values in the notebook will train the best model presented in the report. Running this notebook locally without a GPU takes significant time, so a notebook that has already been run is available on Google Colab. After training the model, its weights will be saved in the `saved_models` folder.
