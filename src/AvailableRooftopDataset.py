@@ -23,9 +23,9 @@ class AvailableRooftopDataset(Dataset):
         transform : callable, optional
             Transform to be applied on images.
         prop_noPV : float, optional
-                            TODO COMMENT
             Proportion of noPV (devoid of any rooftop space) to include.
-            Must be between 0 and 1.
+            Must be between 0 and 1. If set to -1, all the noPV images 
+            available are used.
         """
         self.dir_PV = dir_PV
         self.dir_labels = dir_labels
@@ -64,7 +64,6 @@ class AvailableRooftopDataset(Dataset):
                 if image_name[0] != "."
             ]            
 
-            # TODO comment
             # Keep a proportion of (random) noPV images
             torch.manual_seed(0)
             random.seed(0)
@@ -75,6 +74,7 @@ class AvailableRooftopDataset(Dataset):
             else:
                 noPV_length = int(len(self.images_name)*prop_noPV)
 
+            # If we have enough noPV images available, keep only the given proportion of noPV images.
             if (noPV_length <= len(self.noPV_images_name)):
                 self.noPV_images_name = self.noPV_images_name[:noPV_length]
             else:
