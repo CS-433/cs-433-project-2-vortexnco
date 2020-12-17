@@ -50,11 +50,11 @@ def summary_stats(array, axis=0, type="median", lower_bound=None):
         Array to summarize.
     axis : int, optional
         Axis along which to summarize.
-    type : str
+    type : str, optional
         Type of summary to produce.
         For mean and standard deviation, give one of ["mean", "average", "avg"].
         For order statistics, give one of ["median", "order", "quantiles"].
-    lower_bound : float
+    lower_bound : float, optional
         Lower bound to use; upper bound is defined symmetrically.
         If type is "mean", this is how many standard deviations to go away from the mean.
         If type is "median", this is the lower percentile (<50).
@@ -260,9 +260,8 @@ def test_model(test_predictions, test_labels, threshold, concat, *args):
     concat : bool
         Whether to compute each metric once, on the concatenation of the whole test set.
     args : strings
-        Metrics to use for testing: the list of accepted strings can be found at
-        https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter.
-
+        Metrics to use for testing: the list of accepted strings is METRICS.keys().
+        See https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter.
 
     Returns:
     ========
