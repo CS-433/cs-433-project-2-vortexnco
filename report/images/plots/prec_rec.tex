@@ -1,14 +1,22 @@
-\usepackage{standalone}
+\documentclass{standalone}
+\usepackage{pgfplots}
+\begin{document}
+% Precision recall for model 21
 
 \begin{tikzpicture}
 \begin{axis}[
   xlabel={Recall},
   ylabel={Precision},
   grid=major,
-  height=5cm,
+  %height=5cm,
   width=\columnwidth,
+  every axis plot/.append style={ultra thick}
 ]
   \addplot [blue] table [x=recall_mid, y=precision_mid] {prec_rec_f1_21.txt};
   % Best threshold is 0.370
+  % 6.544490848053712284e-01 7.155667144906743271e-01 
+
+  \addplot [red, mark = *, nodes near coords={(0.716, 0.655)},every node near coord/.style={black,anchor=190}] coordinates {(7.155667144906743271e-01, 6.544490848053712284e-01)};
 \end{axis}
 \end{tikzpicture}
+\end{document}

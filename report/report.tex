@@ -245,6 +245,8 @@ That way, though we lose out on the statistical power
 that computing for each image might bring, we are
 certain that no undefined behaviour will occur.
 
+Using this strategy, we could compute precision-recall curves and maximise the $F_1$-score. Such a precision-recall curve is shown in \autoref{fig:precision_recall}.
+
 \subsection{Testing}
 Once the best threshold is found, we use this to produce
 the final model; we apply this on our test set and compute
@@ -296,7 +298,9 @@ Various standard classification metrics are computed and collected in \autoref{t
     \label{tbl:test_results}
 \end{table}
 
-We choose the model 21 as the best model based on the $F_1$-score. We note that basing our choice on the IoU metric would also result in the same chosen method. The train and validation error during training are shown in \autoref{fig:train_validation_errors}. We see that there are some peaks but their frequency and intensity decreases after the rescheduling after 50 epochs. This suggests that using the learning rate scheduling was a good idea. \autoref{fig:precision_recall} shows how we set the threshold for this model.
+We choose the model 21 as the best model based on the $F_1$-score. We note that basing our choice on the IoU metric would not change our choice.
+The train and validation error during training are shown in \autoref{fig:train_validation_errors}.
+We see that there are some peaks but their frequency and intensity decreases after the rescheduling after 50 epochs. This suggests that using the learning rate scheduling was a good idea. \autoref{fig:precision_recall} shows how we set the threshold for this model.
 
 
 
@@ -308,7 +312,8 @@ We choose the model 21 as the best model based on the $F_1$-score. We note that 
         \label{fig:train_validation_errors}
     \end{minipage}\quad
     \begin{minipage}[b]{.45\columnwidth}
-        \includegraphics[width=\columnwidth]{report/images/placeholder_precision_recall.png}
+        \includegraphics[width=\columnwidth]{report/images/plots/prec_rec.pdf}
+        %\input{report/images/plots/prec_rec}
         \caption{Precision recall plot placeholder that needs to be changed}
         \label{fig:precision_recall}
     \end{minipage}

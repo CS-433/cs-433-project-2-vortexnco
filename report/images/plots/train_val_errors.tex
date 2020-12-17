@@ -1,0 +1,21 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\begin{document}
+% Precision recall for model 21
+
+\begin{tikzpicture}
+\begin{axis}[
+  xlabel={Epochs},
+  % Which error?
+  ylabel={Error},
+  legend entries={Training,Validation},
+  grid=major,
+  %height=5cm,
+  width=\columnwidth,
+  every axis plot/.append style={thick}
+]
+  \addplot [blue] table [x=epochs, y=train] {losses21.txt};
+  \addplot [red] table [x=epochs, y=validation] {losses21.txt};
+\end{axis}
+\end{tikzpicture}
+\end{document}
