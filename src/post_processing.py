@@ -383,7 +383,6 @@ def main(
             precision_lower, precision_mid, precision_upper = (row for row in summary_stats(precision))
             f1_lower, f1_mid, f1_upper = (row for row in summary_stats(f1_scores))
             _, recall_mid, _ = (row for row in summary_stats(recall))
-            print(precision_lower.shape)
             results_summary = np.c_[np.linspace(0, 1, n_thresholds), precision_lower, precision_mid, precision_upper, recall_mid, f1_lower, f1_mid, f1_upper]
             results_file = os.path.join(model_dir, "prec_rec_f1.txt")
             print("Saving results to {}".format(results_file))
@@ -436,7 +435,7 @@ if __name__ == "__main__":
     test = ["precision", "recall", "f1", "jaccard"]
 
     # models = os.listdir(dir_models)
-    model = "21Adam_e_3_50noPV_BCEwithweights_epochs_80_schedulere_4_at50"
+    models = ["21Adam_e_3_50noPV_BCEwithweights_epochs_80_schedulere_4_at50"]
 
     for model in models:
         main(
