@@ -10,10 +10,13 @@
 \usepackage{listings}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{gensymb}
 
 \usepackage{hyperref}
 \usepackage{graphicx}	% For figure environment
 \usepackage{makecell}	% For multiline cells in tables
+\usepackage{array}
+\usepackage{tabularx}
 % \usepackage{subfig}
 \usepackage{subcaption}
 
@@ -49,9 +52,7 @@
 
 \author{
   \textit{CS-433 Machine Learning --- December 2020, EPFL, Switzerland}\\
-  Alexander \textsc{Apostolov} (\texttt{alexander.apostolov@epfl.ch})\\
-  Auguste \textsc{Baum} (\texttt{auguste.baum@epfl.ch})\\
-  Ghali \textsc{Chraibi} (\texttt{ghali.chraibi@epfl.ch})\\
+  Alexander \textsc{Apostolov}, Auguste \textsc{Baum}, Ghali \textsc{Chraibi}\\
   Supervisor: Roberto \textsc{Castello} (\texttt{roberto.castello@epfl.ch})\\ EPFL Laboratory of Solar Energy and Building Physics
 }
 \maketitle
@@ -59,8 +60,7 @@
 \begin{abstract}
 %TODO explain why it is important an that we are the first ones to do it
 %Say we also labelled
-  In this report we propose and analyze a neural network for automatic detection of available rooftop solar panel installations on aerial images. We focus on tuning the network and on analyzing methods to use its outcome to make decisions.
-  %TODO state results of best model
+  In this report we propose and analyze a neural network for automatic detection of available rooftop solar panel installations on aerial images. We focus on tuning the network and on analyzing methods to use its outcome to make decisions. Our best-tuned model has a $F_1$-score of $0.77$ and an IoU (intersection over union) of $0.62$ on a dataset that does not need to be preprocessed.
 \end{abstract}
 
 \section{Introduction}
@@ -75,7 +75,7 @@ The dataset used consists of ortho-rectified [**TODO should explain ?**] images 
 
 \subsection{Data labelling}
 %Updated tool labelled images ourselves, show strange example
-We labelled X images using an updated version of an existing labelling tool based on OpenCV~\cite{Castello_2019}. The tool of this paper is used to label solar panels which are usually rectangular, we update it for our task by making it easy to select regions of an image (usually a roof) and then extruding parts of it (parts of the roof not suitable for solar panels). Each pixel that belongs to a rooftop where there is available space to place solar photovoltaic panels are classified as \emph{PV pixels}, whereas the other pixels are classified as \emph{no-PV pixels}, they do not correspond to rooftop or there are obstacles that do not allow to place any photovoltaic panels on it (e.g. chimney, pipe, windows, etc.).
+We labelled, together with another group of the course working on the same project, X images using an updated version of an existing labelling tool based on OpenCV~\cite{Castello_2019}. The tool of this paper is used to label solar panels which are usually rectangular, we update it for our task by making it easy to select regions of an image (usually a roof) and then extruding parts of it (parts of the roof not suitable for solar panels). Pixels that belongs to a rooftop where there is available space to place solar photovoltaic panels are classified as \emph{PV pixels}, whereas the other pixels are classified as \emph{no-PV pixels}, they do not correspond to rooftop or there are obstacles that do not allow to place any photovoltaic panels on it (e.g. chimney, pipe, windows, etc.).
 
 The labelled images were chosen from a randomized subset of the dataset mentioned above, taken from different tiles (area) of the canton in order to have the most representative variety of rooftop shapes and types (industrial, old town, center town, countryside, etc.). 
 
@@ -240,13 +240,11 @@ Unfortunately, this tended to give a disproportionate
 boost to the precision whereas the recall is not as
 affected (in fact, it becomes equal to the accuracy).
 
-Finally, we decided that would be concatenating all the images
-in the set and to compute each metric just once.
+Finally, we decided that we would be \textbf{concatenating all the images
+in the set} and computing each metric just once.
 That way, though we lose out on the statistical power
 that computing for each image might bring, we are
 certain that no undefined behaviour will occur.
-
-%Despite the issues it had, we went with the we decided the issues it has, w
 
 \subsection{Testing}
 Once the best threshold is found, we use this to produce
@@ -254,85 +252,14 @@ the final model; we apply this on our test set and compute
 standard classification metrics for each prediction,
 using the last method presented in \autoref{ssec:threshold}.
 
+On top of the precision, recall and $F_1$-score we used
+to find the best threshold, we also use the
+Jaccard loss, or intersection-over-union (IoU) as
+it corresponds to the tightness of the overlap between
+predicted and true labels.
+If our task is used to estimate the total area available
+for PV, this tightness is a very relevant metric.
 
-Finally, we decided that a good estimator for the
-performance would be to concatenate all the images
-in t
-% is computed as
-% \begin{equation*}
-%     \text{precision} = \frac{\#\tp}{\#\tl1}
-% \end{equation*}
-% and the recall as
-% \begin{equation*}
-%     \text{recall} = \frac{\#\tp}{\#\pl1},
-% \end{equation*}
-% where $\tl{i}$ corresponds to the set of pixels classified as $i$ is the ground-truth label and 
-% $\pl{i}$ corresponds to the set of pixels classified as 1 is the predicted label.
-
-% The $F_1$-score is computed as 
-% \begin{equation*}
-%     F_1 = 2 \times \frac{\text{precision} \times \text{recall}}{
-% \text{precision} + \text{recall}}
-% \end{equation*}
-% 
-% Additionally, we compute the accuracy as
-% \begin{align*}
-%     \text{accuracy} = \\
-%     \frac{\#\tp + \#\tn}{\#\{\text{All}\}}
-% \end{align*}
-% and the Jaccard loss or intersection-over-union (IoU) as
-% \begin{equation*}
-%     \text{IoU} = \frac{\#\tp}{\#\{\text{Pred} = 1 \cup \text{Label} = 1\}}.
-% \end{equation*}
-
-The way we treat images that are noPV is quite important for
-measuring the performance of a model.
-Indeed, a number of our models have been trained with few or no
-noPV images, whereas the validation and test sets are a more
-faithful representation of the data that would be passed to a
-production-grade model.
-
-We use the $F_1$-score to find the ``best'' threshold possible, which implies computing the precision and recall.
-However, precision is not defined when there are no positive true labels,
-and recall is not defined when there are no positive predicted labels.
-We could arbitrarily decide to set them to 0 or to 1;
-originally it was 0, but it transpired that even if
-the model could determine that the image was a noPV, it
-would still receive a rating of 0, which seemed unfair.
-On the other hand, after changing it to 1, we were
-dubious as to whether we could really trust the results
-we obtained. Indeed, it would seem easier to predict an
-image as noPV than to try and find the PV, but with this
-choice the two were rewarded the exact same way; it was
-not possible to determine whether the ratings were
-good because of the model, or because there were many
-noPV images in the test set.
-
-Another solution was to compute precision and recall
-as weighted averages, as is done with multi-class
-problems. In this case, we compute the metrics 
-with 1 as the positive class and also with 0 as the
-positive class, and then take a weighted average of
-the two; the weights are the support of each class.
-That way, division-by-zero issues naturally disappear.
-However, this tended to give a disproportionate
-boost to the precision whereas the recall is not as
-affected (in fact, it becomes equal to the accuracy).
-
-Because the computation of the $F_1$-score is unweighted,
-this means that lower threshold values
-
-We computed the metrics for each image in the test set and then computed summary statistics;
-however, concatenating all the images and computing each
-metric on this one ``super-image'' is also an easy
-way to ascertain the performance of our models.
-We collected the results using the latter method in
-\autoref{tbl:test_results}.
-%The size of the validation and test sets is according to the train-validation-test split decided in the
-%beginning, namely 15\% of the total dataset for each.
-
-%EXPLAIN HOW THE noPV ARE TREATED (set to 0? set to 1? discarded?)
-%Set to 1 
 
 \section{Results}
 After selecting appropriate learning rates we choose to train the following models:
@@ -340,7 +267,7 @@ After selecting appropriate learning rates we choose to train the following mode
 \begin{center}
     \begin{tabular}{||c | c  | c | c | c ||} 
         \hline
-        $N^o$ & Optimizer & $\%$noPV & Learning rate & Loss \\ [0.5ex] 
+        N\degree & Optimizer & $\%$noPV & Learning rate & Loss \\ [0.5ex] 
         \hline\hline
         1 & ADAM & $0\% $ & $10^{-3}$ & wBCE \\
         \hline
@@ -406,38 +333,20 @@ Each model is run on a validation set to perform a grid-search of the best thres
 and the model is then applied with that threshold to a test set.
 Various standard classification metrics are computed and collected in \autoref{tbl:test_results}.
 
-% I also want to put the 1st and 3rd quartiles -- maybe I could have it span the 2 columns?
-% \begin{table*}[!ht]
-%     \begin{center}
-%         \begin{tabular}{||c | c c c c c c||} 
-%              \hline
-%              \input{report/res_latex}
-%         \end{tabular}
-%     \end{center}
-%     \caption{Test results for each model, where the metric is applied on the concatenated test set.
-%     The threshold is $\arg\max Q_2(\theta)$.
-%     Results have the form $Q_1$--$\bm{Q_2}$--$Q_3$.
-%     Except for accuracy, the metrics are computed with the weighted average method, the same way that would be done in a
-%     multi-class problem, in order to avoid the
-%     division-by-zero issues.
-%     }
-%     \label{tbl:test_results}
-% \end{table*}
-
 % Remove accuracy and thresholds 
-\begin{table*}[!ht]
+\begin{table}
     \begin{center}
-        \begin{tabular}{||c | c c c c c c||} 
+        \begin{tabular}{||c | c c c c||}
              \hline
-             \input{report/res_concat}
+             \input{report/test_results}
         \end{tabular}
     \end{center}
-    \caption{Test results for all models, each with its best threshold according to $\arg\max Q_2(\theta)$.
+    \caption{Test results for all models, each with its best threshold according to $\arg\max F_1(\theta)$.
     }
     \label{tbl:test_results}
-\end{table*}
+\end{table}
 
-We choose the model 6 as the best model based on the IoU score. The train and validation error are shown in \autoref{fig:train_validation_errors}. We see that there are some peaks but they decrease after the rescheduling after 50 epochs. \autoref{fig:precision_recall} shows how we set the threshold for this model.
+We choose the model 21 as the best model based on the $F_1$-score. We note that basing our choice on the IoU metric would also result in the same chosen method. The train and validation error during training are shown in \autoref{fig:train_validation_errors}. We see that there are some peaks but their frequency and intensity decreases after the rescheduling after 50 epochs. This suggests that using the learning rate scheduling was a good idea. \autoref{fig:precision_recall} shows how we set the threshold for this model.
 
 
 
@@ -445,7 +354,7 @@ We choose the model 6 as the best model based on the IoU score. The train and va
 \centering
     \begin{minipage}[b]{.45\columnwidth}
         \includegraphics[width=\columnwidth]{report/images/train_validation_errors.png}
-        \caption{Train and validation errors during training of the best model (no. 6).}
+        \caption{Train and validation errors during training of the best model (no. 21).}
         \label{fig:train_validation_errors}
     \end{minipage}\quad
     \begin{minipage}[b]{.45\columnwidth}
@@ -457,21 +366,32 @@ We choose the model 6 as the best model based on the IoU score. The train and va
 
 \begin{figure}[tbp]
     \centering
-    \includegraphics[width=.8\columnwidth]{report/images/prediction.png}
-    \caption{Prediction of the best model on an image from the Test set.}
+    \includegraphics[width=.85\columnwidth]{report/images/prediction.png}
+    \caption{Prediction of the best model (no. 21) on an image from the Test set using a threshold of 0.37.}
     \label{fig:prediction}
 \end{figure}
 
 \section{Discussion}
-We convince ourselves that this model works well by looking at the predictions it makes. \autoref{fig:prediction} shows the prediction of the model on a test image. We see that the model recognizes roofs really well and manages to exclude big obstacles. However small obstacles on the roof are harder to be recognised by the model and changing patterns on the roof can fool the model into thinking there is an obstacle. 
-%TODO add discussion about the fact that moving the threshold can be better to have less FP or FN.
-Adding more labelled images to the dataset would probably also make for 
+We convince ourselves that this model works well by looking at the predictions it makes. \autoref{fig:prediction} shows the prediction of the model on a test image.
+We see that the model recognizes roofs really well and manages to exclude big obstacles and solar panels. However small obstacles on the roof are harder to be recognised by the model and flat ground surfaces similar to roofs can trick the model. From our experience in labelling the data, we can note that the scenarios mentioned above can be hard to label for humans as well.
+
+Here we have used a test set corresponding to the real distribution of PV and noPV images, so that our model stays as general as possible. However if preprocessing can be applied when using this model in order to remove some noPV images, one of the other models might get better performances.
+
+In general, we see that ADAM outperforms SGD.
+We observe that using the L1 loss is consistently worse but using the weighted version of BCE does not always give better results. This might be due to the fact that we are basing our predictions on a threshold that we calculate independently of the loss during training. Indeed, the thresholds after using BCE are lower that the ones after using wBCE. 
+We also note that training with more noPV images generally gives better results.
+
+Depending on the use case for which this model would be used, it can make more sense to use a different metric to set the threshold value for decisions. If the user wants to minimize the false negative rate, in order to make sure not to underestimate the available area for solar panels, we would suggest to decrease the threshold and increase it in the opposite scenario.
+
+%Mention that we could fine tune more but we had imited access to a GPU that we had to share.
 
 \section{Conclusion}
-Conclusion is done here.
+In this project we propose a model to detect rooftop solar panels in aerial images based on a U-Net. When applied on a test set of images that have not been preprocessed (e.g. removing noPV images), we get a $F_1$-score of $0.77$ and an IoU score of 0.62. 
+In our analysis, we fix the decision threshold for this model to $0.37$ but we also give insights on how to change this value depending on the final use of the model.
+The U-Net could give better performances with more labelled data, this is not readily available but we give a tool that enables to label new data more easily.
 
 \section*{Acknowledgements}
-We would like to thank Pr. Castello and Simon Roquette from his lab for their guidance and helping advices during this project.
+We would like to thank Pr. Castello and Simon Roquette from his lab for their guidance and valuable advice during this project. We would also like to thank, Riccardo Cadei, Raphael Attias, Shasha Jiang, the members of the other group of the ML course working on the same problem as us with whom we shared our labelled data.
 \bibliographystyle{ieeetr}
 \bibliography{report}
 

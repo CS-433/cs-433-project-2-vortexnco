@@ -3,7 +3,7 @@ import os
 
 from torch.optim.lr_scheduler import MultiStepLR
 from model.unet_model import UNet
-from helpers import load_data
+from load_data import load_data
 
 def train(
     model: torch.nn.Module,
@@ -138,11 +138,11 @@ def main(
     batch_size: int = 32,
     dir_data_training: str = "../data/train",
     dir_data_validation: str = "../data/validation",
-    prop_noPV_training: float = 0.25,
+    prop_noPV_training: float = 0.5,
     min_rescale_images: float = 0.6,
     file_losses: str = "losses.txt",
     saving_frequency: int = 2,
-    weight_for_positive_class: float = 6.46,
+    weight_for_positive_class: float = 1.0,
     save_model_parameters: bool = False,
     load_model_parameters: bool = False,
     dir_for_model_parameters: str = "../saved_models",
@@ -177,7 +177,7 @@ def main(
     dir_data_validation : str, optional
         Directory where the folders "images/", "labels/" and "noPV/" are for the validation set.
     prop_noPV_training : float, optional
-        Proportion noPV images to add compared to the total amount of PV images in the train set. The default is 0.25.
+        Proportion noPV images to add compared to the total amount of PV images in the train set. The default is 0.5.
     min_rescale_images : float, optional
         Minimum proportion of the image to keep for the RandomResizedCrop transform.
         The default is 0.6.
@@ -192,9 +192,7 @@ def main(
         The default is 2.
     weight_for_positive_class : float, optional
         Weight for the positive class in the Binary Cross entropy loss.
-        According to the Pytorch documentation it should equal to:
-        the number of negative pixels / the number of positive pixels.
-        The default is 6.46 (calculated with 25% noPV images).
+        The default is 1.0.
     save_model_parameters : bool, optional
         If True saves the model at the end of training. The default is False.
     load_model_parameters : bool, optional
