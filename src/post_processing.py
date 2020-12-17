@@ -37,6 +37,9 @@ METRICS = {
     # "roc_auc_ovo_weighted" : sklearn.metrics.roc_auc_score,
 }
 
+def get_metrics():
+    return METRICS
+
 
 def summary_stats(array, axis=0, type="median", lower_bound=None):
     """Summary statistics of array of given type.
@@ -449,19 +452,24 @@ def main(
 if __name__ == "__main__":
     # dir_models = "/home/auguste/allFinalModels/"
     # dir_data = "/raid/machinelearning_course/data"
-    dir_models = "../stuff/models_data/"
+    # dir_models = "../stuff/models_data/"
+    dir_models = "../stuff/"
     dir_data = "../data/data/"
 
     test = ["precision", "recall", "f1", "jaccard"]
 
-    for model in os.listdir(dir_models):
+    # models = os.listdir(dir_models)
+    models = ["6Adam_e_3_25noPV_BCEwithweights_epochs_80_schedulere_4_at50",
+              "21Adam_e_3_50noPV_BCEwithweights_epochs_80_schedulere_4_at50"]
+
+    for model in models:
     # model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
         main(
             model_name=model,
             from_file=True,  # Should probably be changed to a filename
             to_file=True,
             validation=True,
-            test=test,
+            test=[],
             concat=True,
-            plot=False,
+            plot=True,
         )
