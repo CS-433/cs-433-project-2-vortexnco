@@ -19,6 +19,12 @@ def load_data(
 
     Parameters
     ----------
+    prop_noPV_training : float
+        Proportion of noPV images to add for the training of the model.
+    min_rescale_images : float
+        Minimum proportion of the image to keep for the RandomResizedCrop transform.
+    batch_size : int
+        Number of samples per batch in the DataLoaders.
     dir_data_training : str
         Directory where the folders "images/", "labels/" and "noPV/" are for the training set.
         If empty, the data is not generated.
@@ -28,12 +34,6 @@ def load_data(
     dir_data_test : str
         Directory where the folders "images/", "labels/" and "noPV/" are for the test set.
         If empty, the data is not generated.
-    prop_noPV_training : float
-        Proportion of noPV images to add for the training of the model.
-    min_rescale_images : float
-        Minimum proportion of the image to keep for the RandomResizedCrop transform.
-    batch_size : int
-        Number of samples per batch in the DataLoaders.
 
     Returns
     -------
@@ -44,6 +44,7 @@ def load_data(
     test_dl : torch.utils.data.DataLoader
         Test DataLoader, if data directory is provided, otherwise None.
     """
+    
     roof_train_dataset = None
     if dir_data_training:
         # Transforms to augment the data (for training set)
