@@ -31,10 +31,6 @@ METRICS = {
         true, pred, average="weighted"
     ),
     "roc_auc": sklearn.metrics.roc_auc_score,
-    # "roc_auc_ovr" : sklearn.metrics.roc_auc_score,
-    # "roc_auc_ovo" : sklearn.metrics.roc_auc_score,
-    # "roc_auc_ovr_weighted" : sklearn.metrics.roc_auc_score,
-    # "roc_auc_ovo_weighted" : sklearn.metrics.roc_auc_score,
 }
 
 def get_metrics():
@@ -134,19 +130,9 @@ def precision_recall_fscore(true, pred_probas, thresholds):
     tps[limit_idx] = 0
     predicted_1 = n - thresholds_idx
     actually_1 = tps[0]
-    # predicted_0 = n - predicted_1
-    # actually_0 = n - actually_1
-    # # Positives - True positives
-    # fns = actually_1 - tps
-    # # Negatives - False negatives
-    # tns = actually_0 - fns
 
     with np.errstate(divide="ignore", invalid="ignore"):
         prec_1 = tps / predicted_1
-    #     prec_0 = tns / predicted_0
-    # prec_1 = np.nan_to_num(prec_1, 0)
-    # prec_0 = np.nan_to_num(prec_0, 0)
-    # prec = (actually_1 * prec_1 + actually_0 * prec_0) / n
     # Setting to 1 when undefined
     prec = np.nan_to_num(prec_1, 1)
     # If you never predict 1 your precision is bad
@@ -158,11 +144,6 @@ def precision_recall_fscore(true, pred_probas, thresholds):
     # precision[i] = prec
     with np.errstate(divide="ignore", invalid="ignore"):
         rec_1 = tps / actually_1
-    #     rec_0 = tns / actually_0
-    # rec_1 = np.nan_to_num(rec_1, 0)
-    # rec_0 = np.nan_to_num(rec_0, 0)
-    # # The recall weighted by support seems to be the same as the accuracy
-    # rec = (actually_1 * rec_1 + actually_0 * rec_0) / n
     # Setting to 1 when undefined
     rec = np.nan_to_num(rec_1, 1)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -235,6 +216,7 @@ def find_best_threshold(predictions, labels, n_thresholds, concat, plot):
     # This measure penalises uncertain choices (maximize (mean - spread))
     # But it can lose its meaning when precision and recall are set arbitrarily to 0 or 1
     # idx_best = np.argmax(f1_mid - (f1_upper - f1_lower))
+    # So instead we use this
     idx_best = np.argmax(f1_mid)
     if plot:
         plot_precision_recall_f1(
@@ -408,7 +390,6 @@ def main(
             np.savetxt(
                 results_file,
                 results_summary,
-                # fmt="%.4f",
                 delimiter=" ",
                 header=f"Threshold: {best_threshold:.3f}\nthresholds precision_lower  precision_mid  precision_upper  recall_mid  f1_lower  f1_mid  f1_upper"
             )
@@ -449,20 +430,15 @@ def main(
 
 
 if __name__ == "__main__":
-    # dir_models = "/home/auguste/allFinalModels/"
-    # dir_data = "/raid/machinelearning_course/data"
-    # dir_models = "../stuff/models_data/"
-    dir_models = "../stuff/"
-    dir_data = "../data/data/"
+    dir_models = "../saved_models/"
+    dir_data = "../data/"
 
     test = ["precision", "recall", "f1", "jaccard"]
 
     # models = os.listdir(dir_models)
-    models = ["6Adam_e_3_25noPV_BCEwithweights_epochs_80_schedulere_4_at50",
-              "21Adam_e_3_50noPV_BCEwithweights_epochs_80_schedulere_4_at50"]
+    model = "21Adam_e_3_50noPV_BCEwithweights_epochs_80_schedulere_4_at50"
 
     for model in models:
-    # model = "Adam_e_4_withoutnoPV_BCEwithweights_epochs_100_noscheduler"
         main(
             model_name=model,
             from_file=True,  # Should probably be changed to a filename
