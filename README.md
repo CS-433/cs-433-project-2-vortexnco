@@ -23,6 +23,7 @@ In this project, we provide Python code to detect rooftop available surface for 
     The Jupyter Notebooks are further explained in [the following section](#how-to-reproduce-the-results).
 - `labelling_tool/` contains the adapted labelling tool based on OpenCV to create the labels.
 - `report/` contains various files to cret the report for this project.
+- `requirements.txt` all the external libraries needed to run the code.
 - `data/` contains the data for this project:
     - `train/` training data, randomly chosen 70% of the data
         - `PV/` .png PV images.
