@@ -376,6 +376,7 @@ We convince ourselves that this model works well by looking at the predictions i
 We see that the model recognizes roofs really well and manages to exclude big obstacles and solar panels. However small obstacles on the roof are harder to be recognised by the model and flat ground surfaces similar to roofs can trick the model. From our experience in labelling the data, we can note that the scenarios mentioned above can be hard to label for humans as well.
 
 Here we have used a test set corresponding to the real distribution of PV and noPV images, so that our model stays as general as possible. However if preprocessing can be applied when using this model in order to remove some noPV images, one of the other models might get better performances.
+
 In general, we see that ADAM outperforms SGD.
 We observe that using the L1 loss is consistently worse but using the weighted version of BCE does not always give better results. This might be due to the fact that we are basing our predictions on a threshold that we calculate independently of the loss during training. Indeed, the thresholds after using BCE are lower that the ones after using wBCE. 
 We also note that training with more noPV images generally gives better results.
