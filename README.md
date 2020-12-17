@@ -35,15 +35,15 @@ In this project, we provide Python code to detect rooftop available surface for 
         - `labels/` .png labels of PV images.
 
 - `test/` test data, randomly chosen 15% of the data
-        - `PV/` .png PV images.
-        - `noPV/` .png noPV images.
-        - `labels/` .png labels of PV images.
+    - `PV/` .png PV images.
+    - `noPV/` .png noPV images.
+    - `labels/` .png labels of PV images.
 - `saved_models/` contains folder for each model with its model parameters. This is where validation and test labels and predictions will be stored, e.g.:
-        - `model1/`
-                - `model1` Parameters for model 1.
-        - `model2/`
-                - `model2` Parameters for model 2.
-                - `data.npz` Validation and test data with predictions of model 2.
+    - `model1/`
+        - `model1` Parameters for model 1.
+    - `model2/`
+        - `model2` Parameters for model 2.
+        - `data.npz` Validation and test data with predictions of model 2.
 Note that the parameters file must have the same name as its parent folder.
 
 ### How to reproduce the results?
