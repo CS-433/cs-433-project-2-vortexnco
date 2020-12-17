@@ -1,17 +1,17 @@
 \documentclass{standalone}
 \usepackage{pgfplots}
 \begin{document}
-% Precision recall for model 21
+% Train-validation curves for model 21
 
-\begin{tikzpicture}
+\begin{tikzpicture}[scale=0.50]
 \begin{axis}[
   xlabel={Epochs},
   % Which error?
   ylabel={Error},
   legend entries={Training,Validation},
   grid=major,
-  %height=5cm,
-  width=\columnwidth,
+  height=7cm,
+  width=8cm,
   every axis plot/.append style={thick}
 ]
   \addplot [blue] table [x=epochs, y=train] {losses21.txt};
