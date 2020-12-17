@@ -1,0 +1,14 @@
+\usepackage{standalone}
+
+\begin{tikzpicture}
+\begin{axis}[
+  xlabel={Recall},
+  ylabel={Precision},
+  grid=major,
+  height=5cm,
+  width=\columnwidth,
+]
+  \addplot [blue] table [x=recall_mid, y=precision_mid] {prec_rec_f1_21.txt};
+  % Best threshold is 0.370
+\end{axis}
+\end{tikzpicture}
